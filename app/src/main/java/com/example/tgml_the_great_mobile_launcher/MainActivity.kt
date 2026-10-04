@@ -1,5 +1,6 @@
 package com.example.tgml_the_great_mobile_launcher
 
+import android.R
 import android.content.Intent
 import android.graphics.drawable.Drawable
 import android.os.Bundle
@@ -26,7 +27,13 @@ import kotlinx.coroutines.isActive
 import kotlin.math.abs
 import kotlin.math.exp
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.height
 import androidx.compose.material3.Text
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.withFrameNanos
@@ -44,8 +51,10 @@ import kotlin.math.roundToInt
 import kotlin.math.sin
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Job
+import kotlin.math.min
 
 data class AppInfo(
     val name: String,
@@ -89,8 +98,8 @@ class MainActivity : ComponentActivity() {override fun onCreate(savedInstanceSta
 fun HomeScreen(apps: List<AppInfo>, onAppClick: (AppInfo) -> Unit) {
     Box(
         modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black)
+	        .fillMaxSize()
+	        .background(Color.Black)
     ) { RadialApps( apps = apps, onAppClick = onAppClick) }
 }
 
@@ -115,70 +124,82 @@ fun RadialApps(apps: List<AppInfo>, onAppClick: (AppInfo) -> Unit) {
         val iconSpacing = 250f
 
         val angleRadians = Math.toRadians(angleStep.toDouble())
-
         val radius = iconSpacing / (2f * sin(angleRadians / 2f).toFloat())
-
         val centerX = screenWidth * 0.50f - radius
-
         val centerY = screenHeight * 0.50f
-
         val minRotation = -(apps.size - 1) * angleStep
-
         val maxRotation = 0f
 
-        Box(
+	    val alphabet = ('A'..'Z').toList()
+	    val alphabetIndices = remember(apps) {
+		    alphabet.associateWith { letter ->
+			    apps.indexOfFirst {
+				    it.name.firstOrNull()?.uppercaseChar() == letter
+			    }
+		    }
+	    }
+	    Box(
             modifier = Modifier
-                .fillMaxSize()
-                .pointerInput(Unit) {
-                    var dragRotation = 0f
+	            .fillMaxSize()
+	            .pointerInput(Unit) {
+		            var dragRotation = 0f
 
-                    detectDragGestures(
-                        onDragStart = {
-                            momentumJob?.cancel()
-                            dragRotation = rotation
-                            velocityTracker.resetTracking()
-                        },
+		            detectDragGestures(
+			            onDragStart = {
+				            momentumJob?.cancel()
+				            dragRotation = rotation
+				            velocityTracker.resetTracking()
+			            },
 
-                        onDrag = { change, dragAmount -> change.consume()
-                            velocityTracker.addPosition(change.uptimeMillis, change.position)
-                            val sensitivity = 180f / (radius * Math.toRadians(180.0).toFloat())
+			            onDrag = { change, dragAmount ->
+				            change.consume()
+				            velocityTracker.addPosition(change.uptimeMillis, change.position)
+				            val sensitivity = 180f / (radius * Math.toRadians(180.0).toFloat())
 
-                            dragRotation = (dragRotation + dragAmount.y * sensitivity).coerceIn(minRotation, maxRotation)
-                            rotation = dragRotation
-                        },
+				            dragRotation = (dragRotation + dragAmount.y * sensitivity).coerceIn(
+					            minRotation,
+					            maxRotation
+				            )
+				            rotation = dragRotation
+			            },
 
-                        onDragEnd = {
-                            val velocity = velocityTracker.calculateVelocity()
-                            val sensitivity = 180f / (radius * Math.toRadians(180.0).toFloat())
-                            var angularVelocity = velocity.y * sensitivity
+			            onDragEnd = {
+				            val velocity = velocityTracker.calculateVelocity()
+				            val sensitivity = 180f / (radius * Math.toRadians(180.0).toFloat())
+				            var angularVelocity = velocity.y * sensitivity
 
-                            momentumJob?.cancel()
-                            momentumJob = scope.launch {
-                                var lastTime = withFrameNanos { it }
+				            momentumJob?.cancel()
+				            momentumJob = scope.launch {
+					            var lastTime = withFrameNanos { it }
 
-                                while (
-                                    isActive &&
-                                    abs(angularVelocity) > 0.05f
-                                ) {
-                                    val currentTime = withFrameNanos { it }
+					            while (
+						            isActive &&
+						            abs(angularVelocity) > 0.05f
+					            ) {
+						            val currentTime = withFrameNanos { it }
+						            val deltaTime = (currentTime - lastTime) / 1_000_000_000f
 
-                                    val deltaTime = (currentTime - lastTime) / 1_000_000_000f
+						            lastTime = currentTime
 
-                                    lastTime = currentTime
+						            dragRotation =
+							            (dragRotation + angularVelocity * deltaTime).coerceIn(
+								            minRotation,
+								            maxRotation
+							            )
 
-                                    dragRotation = (dragRotation + angularVelocity * deltaTime).coerceIn(minRotation, maxRotation)
+						            rotation = dragRotation
 
-                                    rotation = dragRotation
+						            if (dragRotation == minRotation || dragRotation == maxRotation) {
+							            break
+						            }
 
-                                    if (dragRotation == minRotation || dragRotation == maxRotation) { break }
-
-                                    angularVelocity *= exp(-0.5f * deltaTime)
-                                }
-                                momentumJob = null
-                            }
-                        }
-                    )
-                }
+						            angularVelocity *= exp(-0.5f * deltaTime)
+					            }
+					            momentumJob = null
+				            }
+			            }
+		            )
+	            }
         ) {
             apps.forEachIndexed { index, app ->
                 val angle = index * angleStep + rotation
@@ -197,6 +218,34 @@ fun RadialApps(apps: List<AppInfo>, onAppClick: (AppInfo) -> Unit) {
                 }
             }
         }
+	    Column(
+		    modifier = Modifier
+			    .align (Alignment.CenterEnd)
+			    .padding(end = 8.dp)
+			    .height(700.dp)
+		        .pointerInput(Unit){
+					detectVerticalDragGestures { change, _ -> change.consume()
+						val fraction = ( change.position.y/size.height).coerceIn(0f,1f)
+						val letterIndex = (fraction*25f).roundToInt().coerceIn(0,25)
+						val letter = alphabet[letterIndex]
+						val index = alphabetIndices[letter] ?: -1
+						if (index >= 0) {
+							rotation = ( -index * angleStep).coerceIn(minRotation, maxRotation)
+							momentumJob?.cancel()
+						}
+					}
+		        },
+			verticalArrangement = Arrangement.SpaceEvenly
+		) {
+			alphabet.forEach { letter->
+				Text(
+					text = letter.toString(),
+					color = Color.White,
+					fontSize = 12.sp,
+
+				)
+			}
+	    }
     }
 }
 
