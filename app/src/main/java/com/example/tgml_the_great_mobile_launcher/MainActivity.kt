@@ -1,6 +1,5 @@
 package com.example.tgml_the_great_mobile_launcher
 
-import android.R
 import android.content.Intent
 import android.graphics.drawable.Drawable
 import android.os.Bundle
@@ -51,10 +50,15 @@ import kotlin.math.roundToInt
 import kotlin.math.sin
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Job
 import kotlin.math.min
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.layout.ContentScale
+import java.nio.file.WatchEvent
 
 data class AppInfo(
     val name: String,
@@ -97,17 +101,22 @@ class MainActivity : ComponentActivity() {override fun onCreate(savedInstanceSta
 @Composable
 fun HomeScreen(apps: List<AppInfo>, onAppClick: (AppInfo) -> Unit) {
     Box(
-        modifier = Modifier
-	        .fillMaxSize()
-	        .background(Color.Black)
-    ) { RadialApps( apps = apps, onAppClick = onAppClick) }
+        modifier = Modifier.fillMaxSize()
+    ) {
+	    Image(
+		    painter = painterResource(id = R.drawable.launcher_background),
+		    contentDescription = null,
+		    contentScale = ContentScale.Crop,
+		    modifier = Modifier.fillMaxSize()
+	    )
+	    RadialApps( apps = apps, onAppClick = onAppClick) }
 }
 
 @Composable
 fun RadialApps(apps: List<AppInfo>, onAppClick: (AppInfo) -> Unit) {
     if (apps.isEmpty()) return
 
-    var rotation by remember { mutableFloatStateOf(0f) }
+    var rotation by remember { mutableFloatStateOf(-45f) }
     var momentumJob by remember { mutableStateOf<Job?>(null) }
 
     BoxWithConstraints(
@@ -120,16 +129,18 @@ fun RadialApps(apps: List<AppInfo>, onAppClick: (AppInfo) -> Unit) {
         val screenWidth = with(density) { maxWidth.toPx() }
         val screenHeight = with(density) { maxHeight.toPx() }
 
-        val angleStep = 360f / 150f
-        val iconSpacing = 250f
+	    val appsPerLayer = 15
+	    val layerCount = (apps.size+appsPerLayer-1)/appsPerLayer
 
+        val angleStep = 180f/appsPerLayer
+        val iconSpacing = 220f
         val angleRadians = Math.toRadians(angleStep.toDouble())
         val radius = iconSpacing / (2f * sin(angleRadians / 2f).toFloat())
-        val centerX = screenWidth * 0.50f - radius
+        val centerX = screenWidth * 0.75f - radius
         val centerY = screenHeight * 0.50f
-        val minRotation = -(apps.size - 1) * angleStep
-        val maxRotation = 0f
 
+	    val minRotation = -(layerCount) * 180f + 90
+	    val maxRotation = 0f
 	    val alphabet = ('A'..'Z').toList()
 	    val alphabetIndices = remember(apps) {
 		    alphabet.associateWith { letter ->
@@ -201,40 +212,79 @@ fun RadialApps(apps: List<AppInfo>, onAppClick: (AppInfo) -> Unit) {
 		            )
 	            }
         ) {
+			//remember this
+		    val layerPosition = -rotation / 180f
+
+		    val currentLayer = (layerPosition + 0.5f)
+			    .toInt()
+			    .coerceIn(0, layerCount - 1)
+
+		    val visibleLayers = listOf(
+			    currentLayer,
+			    currentLayer + 1
+		    )
+
+
             apps.forEachIndexed { index, app ->
-                val angle = index * angleStep + rotation
-                val radians = Math.toRadians(angle.toDouble())
+				val layer = index/appsPerLayer + 1
+	            if (layer in visibleLayers){
 
-                val x = centerX + cos(radians).toFloat() * radius
-                val y = centerY + sin(radians).toFloat() * radius
+					val localIndex = index % appsPerLayer
+	                val angle = localIndex * angleStep + rotation + (layer-1) * 180f
+	                val radians = Math.toRadians(angle.toDouble())
 
-                if (x > -200f && x < screenWidth + 200f && y > -200f && y < screenHeight + 200f) {
-                    val angleDistance = abs(angle) % 360f
-                    val shortestAngleDistance = minOf(angleDistance, 360f - angleDistance)
-                    val appDistance = shortestAngleDistance / angleStep
-                    val scale = 0.5f + (1.5f - 0.5f) * exp(-0.35f * appDistance)
+	                val x = centerX + cos(radians).toFloat() * radius
+	                val y = centerY + sin(radians).toFloat() * radius
 
-                    AppIcon(app = app, x = x, y = y, scale = scale, onClick = { onAppClick(app) })
-                }
+	                if (x > -200f && x < screenWidth + 200f && y > -200f && y < screenHeight + 200f) {
+	                    val angleDistance = abs(angle) % 360f
+	                    val shortestAngleDistance = minOf(angleDistance, 360f - angleDistance)
+	                    val appDistance = shortestAngleDistance / angleStep
+	                    val scale = 0.5f + (1.2f - 0.5f) * exp(-0.35f * appDistance)
+		                val fadeDistance = (appDistance / 7f).coerceIn(0f, 1f)
+		                val alpha = 1f - fadeDistance * fadeDistance * (3f - 2f * fadeDistance)
+		                AppIcon(app = app, x = x, y = y, scale = scale, alpha = alpha, onClick = { onAppClick(app) })
+	                }
+				}
             }
         }
+
+	    //alphabet bar
 	    Column(
 		    modifier = Modifier
-			    .align (Alignment.CenterEnd)
+			    .align(Alignment.CenterEnd)
 			    .padding(end = 8.dp)
 			    .height(700.dp)
-		        .pointerInput(Unit){
-					detectVerticalDragGestures { change, _ -> change.consume()
-						val fraction = ( change.position.y/size.height).coerceIn(0f,1f)
-						val letterIndex = (fraction*25f).roundToInt().coerceIn(0,25)
-						val letter = alphabet[letterIndex]
-						val index = alphabetIndices[letter] ?: -1
-						if (index >= 0) {
-							rotation = ( -index * angleStep).coerceIn(minRotation, maxRotation)
-							momentumJob?.cancel()
-						}
-					}
-		        },
+			    .pointerInput(Unit) {
+				    detectTapGestures { position ->
+					    val fraction = (position.y / size.height).coerceIn(0f, 1f)
+
+					    val letterIndex = (fraction * (alphabet.size - 1)).roundToInt().coerceIn(0, alphabet.size - 1)
+
+					    val letter = alphabet[letterIndex]
+					    val index = alphabetIndices[letter] ?: -1
+
+					    if (index >= 0) { rotation = (-index * angleStep).coerceIn(minRotation, maxRotation)
+						    momentumJob?.cancel()
+					    }
+				    }
+			    }
+			    .pointerInput(Unit) {
+				    detectVerticalDragGestures { change, _ ->
+					    change.consume()
+
+					    val fraction = (change.position.y / size.height).coerceIn(0f, 1f)
+
+					    val letterIndex = (fraction * (alphabet.size - 1)).roundToInt().coerceIn(0, alphabet.size - 1)
+
+					    val letter = alphabet[letterIndex]
+					    val index = alphabetIndices[letter] ?: -1
+
+					    if (index >= 0) { rotation = (-index * angleStep).coerceIn(minRotation, maxRotation)
+						    momentumJob?.cancel()
+					    }
+				    }
+			    },
 			verticalArrangement = Arrangement.SpaceEvenly
 		) {
 			alphabet.forEach { letter->
@@ -250,7 +300,7 @@ fun RadialApps(apps: List<AppInfo>, onAppClick: (AppInfo) -> Unit) {
 }
 
 @Composable
-fun AppIcon(app: AppInfo, x: Float, y: Float, scale: Float, onClick: () -> Unit) {
+fun AppIcon(app: AppInfo, x: Float, y: Float, scale: Float, alpha: Float, onClick: () -> Unit) {
     val iconSize = 64.dp
     val itemWidth = 180.dp
     val itemHeight = 70.dp
@@ -271,6 +321,7 @@ fun AppIcon(app: AppInfo, x: Float, y: Float, scale: Float, onClick: () -> Unit)
             .graphicsLayer {
                 scaleX = scale
                 scaleY = scale
+	            this.alpha = alpha
             }
             .clickable {
                 onClick()
@@ -282,10 +333,15 @@ fun AppIcon(app: AppInfo, x: Float, y: Float, scale: Float, onClick: () -> Unit)
             modifier = Modifier.size(iconSize)
         )
 
-        Text(
-            text = app.name,
+	    Text(
+		    text = if (app.name.length > 10) {
+			    app.name.take(7) + "..."
+		    } else {
+			    app.name
+		    },
             color = Color.White,
             maxLines = 1,
+	        fontSize = 12.sp,
             modifier = Modifier.padding(start = 8.dp)
         )
     }
