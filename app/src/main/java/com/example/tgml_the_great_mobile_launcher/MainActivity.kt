@@ -20,11 +20,16 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-
+import androidx.compose.ui.input.pointer.util.VelocityTracker
+import androidx.compose.runtime.mutableStateOf
+import kotlinx.coroutines.isActive
+import kotlin.math.abs
+import kotlin.math.exp
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.Text
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
@@ -35,13 +40,12 @@ import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
 import com.example.tgml_the_great_mobile_launcher.ui.theme.TGMLTheGreatMobileLauncherTheme
 import kotlin.math.cos
-
 import kotlin.math.roundToInt
 import kotlin.math.sin
-
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
-
+import androidx.compose.ui.graphics.graphicsLayer
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.Job
 
 data class AppInfo(
     val name: String,
@@ -50,29 +54,17 @@ data class AppInfo(
     val icon: Drawable
 )
 
-class MainActivity : ComponentActivity() {
-    override fun onCreate(savedInstanceState: Bundle?) {
+class MainActivity : ComponentActivity() {override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
         val apps = getInstalledApps()
 
-        setContent {
-            TGMLTheGreatMobileLauncherTheme {
-                AppDrawer(
-                    apps = apps,
-                    onAppClick = { app ->
-                        launchApp(app)
-                    }
-                )
-            }
-        }
+        setContent { TGMLTheGreatMobileLauncherTheme { HomeScreen(apps = apps, onAppClick = { app -> launchApp(app) })}}
     }
 
     private fun getInstalledApps(): List<AppInfo> {
-        val intent = Intent(Intent.ACTION_MAIN).apply {
-            addCategory(Intent.CATEGORY_LAUNCHER)
-        }
+        val intent = Intent(Intent.ACTION_MAIN).apply { addCategory(Intent.CATEGORY_LAUNCHER) }
 
         return packageManager
             .queryIntentActivities(intent, 0)
@@ -88,120 +80,120 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun launchApp(app: AppInfo) {
-        val intent = Intent().apply {
-            setClassName(
-                app.packageName,
-                app.activityName
-            )
-        }
-
+        val intent = Intent().apply { setClassName(app.packageName, app.activityName) }
         startActivity(intent)
     }
 }
 
 @Composable
-fun AppDrawer( apps: List<AppInfo>, onAppClick: (AppInfo) -> Unit) {
-    var rotation by remember { mutableFloatStateOf(0f) }
-
+fun HomeScreen(apps: List<AppInfo>, onAppClick: (AppInfo) -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black)
-    ) {
-        RadialApps(
-            apps = apps,
-            rotation = rotation,
-            onRotationChange = { rotation = it },
-            onAppClick = onAppClick
-        )
-    }
+    ) { RadialApps( apps = apps, onAppClick = onAppClick) }
 }
 
 @Composable
-fun RadialApps(
-    apps: List<AppInfo>,
-    rotation: Float,
-    onRotationChange: (Float) -> Unit,
-    onAppClick: (AppInfo) -> Unit){
-
+fun RadialApps(apps: List<AppInfo>, onAppClick: (AppInfo) -> Unit) {
     if (apps.isEmpty()) return
 
-    BoxWithConstraints( modifier = Modifier.fillMaxSize() ) {
+    var rotation by remember { mutableFloatStateOf(0f) }
+    var momentumJob by remember { mutableStateOf<Job?>(null) }
+
+    BoxWithConstraints(
+        modifier = Modifier.fillMaxSize()
+    ) {
         val density = LocalDensity.current
+        val scope = rememberCoroutineScope()
+        val velocityTracker = remember { VelocityTracker() }
 
         val screenWidth = with(density) { maxWidth.toPx() }
         val screenHeight = with(density) { maxHeight.toPx() }
 
-        val visibleApps = 7
-        val visibleAngle = 62f
+        val angleStep = 360f / 150f
+        val iconSpacing = 250f
 
-        val angleStep = 360f/apps.size
-        val iconSpacing = 300f
         val angleRadians = Math.toRadians(angleStep.toDouble())
+
         val radius = iconSpacing / (2f * sin(angleRadians / 2f).toFloat())
 
-        val centerAngle = 0f
+        val centerX = screenWidth * 0.50f - radius
 
-        var currentRotation by remember { mutableFloatStateOf(rotation) }
-
-        LaunchedEffect(rotation) {
-            currentRotation = rotation
-        }
-
-
-        val centerX = (screenWidth * 0.50f)- radius
         val centerY = screenHeight * 0.50f
 
+        val minRotation = -(apps.size - 1) * angleStep
+
         val maxRotation = 0f
-        val minRotation = -(apps.size - visibleApps).coerceAtLeast(0) * angleStep
-
-        val clampedRotation = currentRotation.coerceIn(
-            minRotation,
-            maxRotation
-        )
-
-        if (clampedRotation != currentRotation) {
-            currentRotation = clampedRotation
-            onRotationChange(clampedRotation)
-        }
 
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .pointerInput(apps.size, radius) {
-                    detectDragGestures() { _, dragAmount ->
-                        val sensitivity = 180f / (radius * Math.toRadians(180f.toDouble())).toFloat()
-                        val delta = dragAmount.y * sensitivity
+                .pointerInput(Unit) {
+                    var dragRotation = 0f
 
-                        val newRotation =
-                            (currentRotation + delta).coerceIn(minRotation, maxRotation)
+                    detectDragGestures(
+                        onDragStart = {
+                            momentumJob?.cancel()
+                            dragRotation = rotation
+                            velocityTracker.resetTracking()
+                        },
 
-                        currentRotation = newRotation
-                        onRotationChange(newRotation)
-                    }
+                        onDrag = { change, dragAmount -> change.consume()
+                            velocityTracker.addPosition(change.uptimeMillis, change.position)
+                            val sensitivity = 180f / (radius * Math.toRadians(180.0).toFloat())
+
+                            dragRotation = (dragRotation + dragAmount.y * sensitivity).coerceIn(minRotation, maxRotation)
+                            rotation = dragRotation
+                        },
+
+                        onDragEnd = {
+                            val velocity = velocityTracker.calculateVelocity()
+                            val sensitivity = 180f / (radius * Math.toRadians(180.0).toFloat())
+                            var angularVelocity = velocity.y * sensitivity
+
+                            momentumJob?.cancel()
+                            momentumJob = scope.launch {
+                                var lastTime = withFrameNanos { it }
+
+                                while (
+                                    isActive &&
+                                    abs(angularVelocity) > 0.05f
+                                ) {
+                                    val currentTime = withFrameNanos { it }
+
+                                    val deltaTime = (currentTime - lastTime) / 1_000_000_000f
+
+                                    lastTime = currentTime
+
+                                    dragRotation = (dragRotation + angularVelocity * deltaTime).coerceIn(minRotation, maxRotation)
+
+                                    rotation = dragRotation
+
+                                    if (dragRotation == minRotation || dragRotation == maxRotation) { break }
+
+                                    angularVelocity *= exp(-0.5f * deltaTime)
+                                }
+                                momentumJob = null
+                            }
+                        }
+                    )
                 }
         ) {
             apps.forEachIndexed { index, app ->
-                val angle = centerAngle + index * angleStep + currentRotation
+                val angle = index * angleStep + rotation
                 val radians = Math.toRadians(angle.toDouble())
 
-                val x = centerX + cos(radians) * radius
-                val y = centerY + sin(radians) * radius
+                val x = centerX + cos(radians).toFloat() * radius
+                val y = centerY + sin(radians).toFloat() * radius
 
-                if (
-                    x > -150f &&
-                    x < screenWidth + 150f &&
-                    y > -150f &&
-                    y < screenHeight + 150f
-                ) {
-                    AppIcon(
-                        app = app,
-                        x = x.toFloat(),
-                        y = y.toFloat(),
-                        onClick = {
-                            onAppClick(app)
-                        }
-                    )
+                if (x > -200f && x < screenWidth + 200f && y > -200f && y < screenHeight + 200f) {
+                    val angleDistance = abs(angle) % 360f
+                    val shortestAngleDistance = minOf(angleDistance, 360f - angleDistance)
+                    val appDistance = shortestAngleDistance / angleStep
+                    val scale = 0.5f + (1.5f - 0.5f) * exp(-0.35f * appDistance)
+
+                    AppIcon(app = app, x = x, y = y, scale = scale, onClick = { onAppClick(app) })
                 }
             }
         }
@@ -209,39 +201,27 @@ fun RadialApps(
 }
 
 @Composable
-fun AppIcon(
-    app: AppInfo,
-    x: Float,
-    y: Float,
-    onClick: () -> Unit
-) {
+fun AppIcon(app: AppInfo, x: Float, y: Float, scale: Float, onClick: () -> Unit) {
     val iconSize = 64.dp
     val itemWidth = 180.dp
     val itemHeight = 70.dp
 
     val density = LocalDensity.current
+
     val itemWidthPx = with(density) { itemWidth.toPx() }
+
     val itemHeightPx = with(density) { itemHeight.toPx() }
 
-    val bitmap = remember(app.icon) {
-        app.icon.toBitmap(
-            width = 128,
-            height = 128
-        ).asImageBitmap()
-    }
+    val bitmap = remember(app.icon) { app.icon.toBitmap(width = 128, height = 128).asImageBitmap() }
 
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
-            .size(
-                width = itemWidth,
-                height = itemHeight
-            )
-            .offset {
-                IntOffset(
-                    x.roundToInt() - (itemWidthPx / 2).roundToInt(),
-                    y.roundToInt() - (itemHeightPx / 2).roundToInt()
-                )
+            .size(width = itemWidth, height = itemHeight)
+            .offset { IntOffset(x.roundToInt() - (itemWidthPx / 2).roundToInt(), y.roundToInt() - (itemHeightPx / 2).roundToInt()) }
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
             }
             .clickable {
                 onClick()
