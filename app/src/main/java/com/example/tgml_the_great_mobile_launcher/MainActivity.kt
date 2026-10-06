@@ -15,7 +15,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Composable as Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
@@ -31,7 +31,6 @@ import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.material3.Text
 import androidx.compose.runtime.rememberCoroutineScope
@@ -48,32 +47,106 @@ import com.example.tgml_the_great_mobile_launcher.ui.theme.TGMLTheGreatMobileLau
 import kotlin.math.cos
 import kotlin.math.roundToInt
 import kotlin.math.sin
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Job
-import kotlin.math.min
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.layout.ContentScale
-import java.nio.file.WatchEvent
+import android.graphics.BitmapFactory
+import android.net.Uri
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.produceState 
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import androidx.core.content.edit
+import androidx.core.net.toUri
+import androidx.compose.ui.draw.blur
 
-data class AppInfo(
+data class AppInfo
+	(
     val name: String,
     val packageName: String,
     val activityName: String,
     val icon: Drawable
 )
 
-class MainActivity : ComponentActivity() {override fun onCreate(savedInstanceState: Bundle?) {
+enum class LauncherLayout
+{
+	RADIAL,
+	GRID_SCROLL,
+	GRID_ZOOM
+}
+
+class MainActivity : ComponentActivity()
+{
+
+	private val selectedBackgroundUri = mutableStateOf<Uri?>(null)
+	private val selectedLayout = mutableStateOf(LauncherLayout.RADIAL)
+	private val backgroundPicker = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+		if (uri != null) {
+			try{
+				contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+			} catch (_: Exception) {
+
+			}
+			getSharedPreferences("launcher", MODE_PRIVATE)
+				.edit {
+    				putString("background_uri", uri.toString())
+				}
+			selectedBackgroundUri.value = uri
+		}
+	}
+
+
+	override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+		enableEdgeToEdge()
+		val apps = getInstalledApps()
+		val savedBackground =
+			getSharedPreferences("launcher", MODE_PRIVATE)
+				.getString("background_uri", null)
 
-        val apps = getInstalledApps()
+		selectedBackgroundUri.value = savedBackground?.toUri()
+		val savedLayout = getSharedPreferences("launcher", MODE_PRIVATE)
+			.getString("layout",  LauncherLayout.RADIAL.name)
 
-        setContent { TGMLTheGreatMobileLauncherTheme { HomeScreen(apps = apps, onAppClick = { app -> launchApp(app) })}}
+		selectedLayout.value = try {
+			LauncherLayout.valueOf(savedLayout ?: LauncherLayout.RADIAL.name)
+		} catch (_: Exception) {
+			LauncherLayout.RADIAL
+		}
+		setContent { TGMLTheGreatMobileLauncherTheme { HomeScreen(
+			apps = apps,
+			backgroundUri = selectedBackgroundUri.value,
+			layout = selectedLayout.value,
+			onPickBackground = {
+				backgroundPicker.launch(arrayOf("image/*"))
+			},
+			onLayoutChange = { newLayout ->
+				selectedLayout.value = newLayout
+
+				getSharedPreferences("launcher", MODE_PRIVATE)
+					.edit {
+						putString("layout", newLayout.name)
+					}
+			},
+			onAppClick = { app ->
+				launchApp(app)
+			}
+		)}}
     }
 
     private fun getInstalledApps(): List<AppInfo> {
@@ -99,21 +172,306 @@ class MainActivity : ComponentActivity() {override fun onCreate(savedInstanceSta
 }
 
 @Composable
-fun HomeScreen(apps: List<AppInfo>, onAppClick: (AppInfo) -> Unit) {
-    Box(
-        modifier = Modifier.fillMaxSize()
-    ) {
-	    Image(
-		    painter = painterResource(id = R.drawable.launcher_background),
-		    contentDescription = null,
-		    contentScale = ContentScale.Crop,
-		    modifier = Modifier.fillMaxSize()
-	    )
-	    RadialApps( apps = apps, onAppClick = onAppClick) }
+fun HomeScreen(apps: List<AppInfo>, backgroundUri: Uri?, layout: LauncherLayout, onPickBackground: () -> Unit, onLayoutChange: (LauncherLayout) -> Unit, onAppClick: (AppInfo) -> Unit)
+{
+	var editMode by remember { mutableStateOf(false) }
+	var settingsOpen by remember { mutableStateOf(false) }
+	val launcherScale by animateFloatAsState(
+		targetValue = if (editMode) 0.82f else 1f,
+		animationSpec = tween(300),
+		label = "launcherScale"
+	)
+	Box(
+		modifier = Modifier
+			.fillMaxSize()
+			.pointerInput(Unit) {
+				detectTapGestures(
+					onLongPress = {
+						editMode = true
+					}
+				)
+			}
+	) {
+		if (editMode) {
+			LauncherBackground(
+				backgroundUri = backgroundUri,
+				blurred = true
+			)
+		}
+		Box(
+		modifier = Modifier
+			.fillMaxSize()
+			.graphicsLayer {
+				scaleX = launcherScale
+				scaleY = launcherScale
+			}
+		) {
+
+			LauncherBackground(
+				backgroundUri = backgroundUri
+			)
+
+			LauncherLayoutView(
+				layout = layout,
+				apps = apps,
+				onAppClick = onAppClick
+			)
+		}
+		AnimatedVisibility(
+			visible = editMode,
+			modifier = Modifier
+				.align(Alignment.BottomCenter)
+				.navigationBarsPadding(),
+			enter = fadeIn(tween (200)) + slideInVertically(initialOffsetY = {it}, animationSpec = tween (300)),
+			exit = fadeOut(tween (200)) + slideOutVertically(targetOffsetY = {it}, animationSpec = tween (300)),
+
+			) {
+			EditorBar(
+				onBackgroundClick = onPickBackground,
+				onAddScreen = {
+				},
+				onSettingsClick = {
+					settingsOpen = true
+				},
+				onDone = {
+					editMode = false
+				}
+			)
+		}
+		AnimatedVisibility(
+			visible = settingsOpen,
+			enter = fadeIn(tween(200)),
+			exit = fadeOut(tween(200))
+		) {
+			LauncherSettings(
+				currentLayout = layout,
+				onLayoutChange = onLayoutChange,
+				onClose = {
+					settingsOpen = false
+				}
+			)
+		}
+	}
 }
 
 @Composable
-fun RadialApps(apps: List<AppInfo>, onAppClick: (AppInfo) -> Unit) {
+fun LauncherSettings(currentLayout: LauncherLayout, onLayoutChange: (LauncherLayout) -> Unit, onClose: () -> Unit)
+{
+	Box(
+		modifier = Modifier
+			.fillMaxSize()
+			.background(Color.Black.copy(alpha = 0.65f))
+	) {
+		Column(
+			modifier = Modifier
+				.align(Alignment.Center)
+				.background(
+					Color.Black.copy(alpha = 0.9f),
+					RoundedCornerShape(24.dp)
+				)
+				.padding(24.dp),
+			verticalArrangement = Arrangement.spacedBy(12.dp)
+		) {
+			Text(
+				text = "Launcher Layout",
+				color = Color.White,
+				fontSize = 22.sp
+			)
+
+			LayoutOption(
+				name = "Radial",
+				selected = currentLayout == LauncherLayout.RADIAL,
+				enabled = true,
+				onClick = {
+					onLayoutChange(LauncherLayout.RADIAL)
+				}
+			)
+
+			LayoutOption(
+				name = "Grid Scroll",
+				selected = currentLayout == LauncherLayout.GRID_SCROLL,
+				enabled = false,
+				onClick = {
+					onLayoutChange(LauncherLayout.GRID_SCROLL)
+				}
+			)
+
+			LayoutOption(
+				name = "Grid Zoom",
+				selected = currentLayout == LauncherLayout.GRID_ZOOM,
+				enabled = false,
+				onClick = {
+					onLayoutChange(LauncherLayout.GRID_ZOOM)
+				}
+			)
+
+			Text(
+				text = "Close",
+				color = Color.White,
+				modifier = Modifier
+					.clickable {
+						onClose()
+					}
+					.padding(8.dp)
+			)
+		}
+	}
+}
+
+@Composable
+fun LayoutOption(name: String, selected: Boolean, enabled: Boolean, onClick: () -> Unit)
+{
+	Row(
+		verticalAlignment = Alignment.CenterVertically,
+		modifier = Modifier
+			.fillMaxWidth()
+			.clickable(enabled = enabled) {
+				onClick()
+			}
+			.padding(vertical = 10.dp)
+	) {
+		Text(
+			text = if (selected) "●" else "○",
+			color = if (enabled) Color.White else Color.Gray,
+			fontSize = 18.sp
+		)
+
+		Text(
+			text = name,
+			color = if (enabled) {
+				Color.White
+			} else {
+				Color.White.copy(alpha = 0.35f)
+			},
+			fontSize = 16.sp,
+			modifier = Modifier.padding(start = 12.dp)
+		)
+
+		if (!enabled) {
+			Text(
+				text = "Coming soon",
+				color = Color.White.copy(alpha = 0.3f),
+				fontSize = 11.sp,
+				modifier = Modifier.padding(start = 8.dp)
+			)
+		}
+	}
+}
+
+@Composable
+fun LauncherLayoutView(layout: LauncherLayout, apps: List<AppInfo>, onAppClick: (AppInfo) -> Unit)
+{
+	when (layout) {
+		LauncherLayout.RADIAL -> {
+			RadialApps(
+				apps = apps,
+				onAppClick = onAppClick
+			)
+		}
+
+		LauncherLayout.GRID_SCROLL -> {
+			// Future scrollable grid
+		}
+
+		LauncherLayout.GRID_ZOOM -> {
+			// Future zoomable grid
+		}
+	}
+}
+
+@Composable
+fun LauncherBackground(backgroundUri: Uri?, blurred: Boolean = false)
+{
+	val context = LocalContext.current
+	val bitmap by produceState<android.graphics.Bitmap?> (
+		initialValue = null,
+		key1 = backgroundUri
+	){
+		value = if (backgroundUri == null){
+			null
+		} else{
+			withContext(Dispatchers.IO){
+				try {
+					context.contentResolver.openInputStream(backgroundUri)?.use { BitmapFactory.decodeStream(it) }
+				} catch (_: Exception){
+					null
+				}
+			}
+		}
+	}
+
+	if (bitmap != null) {
+
+		Image(
+			bitmap = bitmap!!.asImageBitmap(),
+			contentDescription = null,
+			contentScale = ContentScale.Crop,
+			modifier = Modifier.fillMaxSize()
+		)
+
+	} else {
+
+		Image(
+			painter = painterResource(
+				id = R.drawable.launcher_background
+			),
+			contentDescription = null,
+			contentScale = ContentScale.Crop,
+			modifier = Modifier
+				.fillMaxSize()
+				.then(
+					if (blurred) {
+						Modifier.blur(35.dp)
+					} else {
+						Modifier
+					}
+				)
+		)
+	}
+}
+
+@Composable
+fun EditorBar(onBackgroundClick: () -> Unit, onAddScreen: () -> Unit, onSettingsClick: () -> Unit, onDone: () -> Unit)
+{
+	Row(
+		horizontalArrangement = Arrangement.spacedBy(8.dp),
+		verticalAlignment = Alignment.CenterVertically,
+		modifier = Modifier
+			.padding(horizontal = 12.dp, vertical = 12.dp)
+			.background(
+				Color.Black.copy(alpha = 0.82f),
+				RoundedCornerShape(22.dp)
+			)
+			.padding(horizontal = 10.dp, vertical = 8.dp)
+	) {
+		EditorButton(
+			icon = "🎨",
+			label = "Background",
+			onClick = onBackgroundClick
+		)
+		EditorButton(
+				icon = "+",
+		label = "Add screen",
+		onClick = onAddScreen
+		)
+
+		EditorButton(
+			icon = "⚙",
+			label = "Settings",
+			onClick = onSettingsClick
+		)
+
+		EditorButton(
+			icon = "✓",
+			label = "Done",
+			onClick = onDone
+		)
+	}
+}
+
+@Composable
+fun RadialApps(apps: List<AppInfo>, onAppClick: (AppInfo) -> Unit)
+{
     if (apps.isEmpty()) return
 
     var rotation by remember { mutableFloatStateOf(-45f) }
@@ -125,10 +483,8 @@ fun RadialApps(apps: List<AppInfo>, onAppClick: (AppInfo) -> Unit) {
         val density = LocalDensity.current
         val scope = rememberCoroutineScope()
         val velocityTracker = remember { VelocityTracker() }
-
         val screenWidth = with(density) { maxWidth.toPx() }
         val screenHeight = with(density) { maxHeight.toPx() }
-
 	    val appsPerLayer = 15
 	    val layerCount = (apps.size+appsPerLayer-1)/appsPerLayer
 
@@ -208,7 +564,7 @@ fun RadialApps(apps: List<AppInfo>, onAppClick: (AppInfo) -> Unit) {
 					            }
 					            momentumJob = null
 				            }
-			            }
+			            } 
 		            )
 	            }
         ) {
@@ -218,7 +574,6 @@ fun RadialApps(apps: List<AppInfo>, onAppClick: (AppInfo) -> Unit) {
 		    val currentLayer = (layerPosition + 0.5f)
 			    .toInt()
 			    .coerceIn(0, layerCount - 1)
-
 		    val visibleLayers = listOf(
 			    currentLayer,
 			    currentLayer + 1
@@ -300,7 +655,8 @@ fun RadialApps(apps: List<AppInfo>, onAppClick: (AppInfo) -> Unit) {
 }
 
 @Composable
-fun AppIcon(app: AppInfo, x: Float, y: Float, scale: Float, alpha: Float, onClick: () -> Unit) {
+fun AppIcon(app: AppInfo, x: Float, y: Float, scale: Float, alpha: Float, onClick: () -> Unit)
+{
     val iconSize = 64.dp
     val itemWidth = 180.dp
     val itemHeight = 70.dp
@@ -345,4 +701,34 @@ fun AppIcon(app: AppInfo, x: Float, y: Float, scale: Float, alpha: Float, onClic
             modifier = Modifier.padding(start = 8.dp)
         )
     }
+}
+
+@Composable
+fun EditorButton(icon: String, label: String, onClick: () -> Unit )
+{
+	Column(
+		horizontalAlignment = Alignment.CenterHorizontally,
+		modifier = Modifier
+			.pointerInput(Unit) {
+				detectTapGestures {
+					onClick()
+				}
+			}
+			.padding(
+				horizontal = 8.dp,
+				vertical = 4.dp
+			)
+	) {
+
+		Text(
+			text = icon,
+			color = Color.White,
+			fontSize = 22.sp
+		)
+		Text(
+			text = label,
+			color = Color.White.copy(alpha = 0.75f),
+			fontSize = 9.sp
+		)
+	}
 }
