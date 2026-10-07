@@ -15,6 +15,9 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.runtime.Composable as Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -55,6 +58,7 @@ import kotlinx.coroutines.Job
 import androidx.compose.ui.layout.ContentScale
 import android.graphics.BitmapFactory
 import android.net.Uri
+import android.widget.ZoomButton
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
@@ -74,9 +78,10 @@ import kotlinx.coroutines.withContext
 import androidx.core.content.edit
 import androidx.core.net.toUri
 import androidx.compose.ui.draw.blur
+import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.ui.autofill.contentType
 
-data class AppInfo
-	(
+data class AppInfo(
     val name: String,
     val packageName: String,
     val activityName: String,
@@ -92,7 +97,6 @@ enum class LauncherLayout
 
 class MainActivity : ComponentActivity()
 {
-
 	private val selectedBackgroundUri = mutableStateOf<Uri?>(null)
 	private val selectedLayout = mutableStateOf(LauncherLayout.RADIAL)
 	private val backgroundPicker = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -290,7 +294,7 @@ fun LauncherSettings(currentLayout: LauncherLayout, onLayoutChange: (LauncherLay
 			LayoutOption(
 				name = "Grid Scroll",
 				selected = currentLayout == LauncherLayout.GRID_SCROLL,
-				enabled = false,
+				enabled = true,
 				onClick = {
 					onLayoutChange(LauncherLayout.GRID_SCROLL)
 				}
@@ -299,7 +303,7 @@ fun LauncherSettings(currentLayout: LauncherLayout, onLayoutChange: (LauncherLay
 			LayoutOption(
 				name = "Grid Zoom",
 				selected = currentLayout == LauncherLayout.GRID_ZOOM,
-				enabled = false,
+				enabled = true,
 				onClick = {
 					onLayoutChange(LauncherLayout.GRID_ZOOM)
 				}
@@ -370,11 +374,17 @@ fun LauncherLayoutView(layout: LauncherLayout, apps: List<AppInfo>, onAppClick: 
 		}
 
 		LauncherLayout.GRID_SCROLL -> {
-			// Future scrollable grid
+			GridScroll(
+				apps = apps,
+				onAppClick = onAppClick
+			)
 		}
 
 		LauncherLayout.GRID_ZOOM -> {
-			// Future zoomable grid
+			GridZoom(
+				apps = apps,
+				onAppClick = onAppClick
+			)
 		}
 	}
 }
@@ -564,7 +574,7 @@ fun RadialApps(apps: List<AppInfo>, onAppClick: (AppInfo) -> Unit)
 					            }
 					            momentumJob = null
 				            }
-			            } 
+			            }
 		            )
 	            }
         ) {
@@ -654,6 +664,155 @@ fun RadialApps(apps: List<AppInfo>, onAppClick: (AppInfo) -> Unit)
     }
 }
 
+
+@Composable
+fun GridScroll(apps: List<AppInfo>, onAppClick: (AppInfo) -> Unit)
+{
+	LazyVerticalGrid(
+		columns = GridCells.Fixed(5),
+		modifier = Modifier
+			.fillMaxSize()
+			.padding(
+				start = 40.dp,
+				end = 40.dp,
+				top = 40.dp,
+				bottom = 40.dp
+			),
+		verticalArrangement = Arrangement.spacedBy(20.dp),
+		horizontalArrangement = Arrangement.spacedBy(20.dp)
+	) {
+		items(apps) { app ->
+			GridAppIcon(
+				app = app,
+				onClick = { onAppClick(app) }
+			)
+		}
+	}
+}
+
+@Composable
+fun GridZoom(apps: List<AppInfo>, onAppClick: (AppInfo) -> Unit)
+{
+	var scale by remember { mutableFloatStateOf(1f) }
+	var offsetX by remember { mutableFloatStateOf(0f) }
+	var offsetY by remember { mutableFloatStateOf(0f) }
+
+	Box(
+		modifier = Modifier
+			.fillMaxSize()
+			.pointerInput(Unit) {
+				detectTransformGestures { _, pan, zoom, _ ->
+					scale *= zoom
+					scale.coerceIn(0.5f, 2.5f)
+					offsetX += pan.x
+					offsetY += pan.y
+				}
+			}
+	){
+		Box(
+			modifier = Modifier
+				.fillMaxSize()
+				.graphicsLayer {
+					scaleX = scale
+					scaleY = scale
+					translationX = offsetX
+					translationY = offsetY
+				}
+		){
+			ZoomGridContent(
+				apps = apps,
+				onAppClick = onAppClick
+			)
+		}
+	}
+}
+
+@Composable
+fun ZoomGridContent(apps: List<AppInfo>, onAppClick: (AppInfo) -> Unit)
+{
+	val columns = 4
+	val itemWidth = 180.dp
+	val itemHeight = 120.dp
+
+	BoxWithConstraints(
+		modifier = Modifier.fillMaxSize()
+	) {
+		val density = LocalDensity.current
+		val screenWidth = with(density){
+			maxWidth.toPx()
+		}
+		val screenHeight = with(density){
+			maxHeight.toPx()
+		}
+		val gridWidth = columns * with(density){
+			itemWidth.toPx()
+		}
+
+		val startX = (screenWidth - gridWidth) / 2f
+		val startY = 60f
+
+		apps.forEachIndexed { index, app ->
+			val row = index / columns
+			val col = index % columns
+
+			val x = startX + col * with(density){
+				itemWidth.toPx()
+			}
+			val y = startY + row * with(density){
+				itemHeight.toPx()
+			}
+
+			GridZoomAppIcon(
+				app = app,
+				x = x,
+				y = y,
+				itemWidth = itemWidth,
+				itemHeight = itemHeight,
+				onClick = {
+					onAppClick(app)
+				}
+			)
+		}
+	}
+}
+
+@Composable
+fun GridAppIcon(app: AppInfo, onClick: () -> Unit)
+{
+	val bitmap = remember(app.icon) {
+		app.icon
+			.toBitmap(width = 128, height = 128)
+			.asImageBitmap()
+	}
+
+	Column(
+		horizontalAlignment = Alignment.CenterHorizontally,
+		modifier = Modifier
+			.fillMaxWidth()
+			.clickable {
+				onClick()
+			}
+			.padding(8.dp)
+	) {
+		Image(
+			bitmap = bitmap,
+			contentDescription = app.name,
+			modifier = Modifier.size(64.dp)
+		)
+
+		Text(
+			text = if (app.name.length > 10) {
+				app.name.take(7) + "..."
+			} else {
+				app.name
+			},
+			color = Color.White,
+			maxLines = 1,
+			fontSize = 12.sp
+		)
+	}
+}
+
 @Composable
 fun AppIcon(app: AppInfo, x: Float, y: Float, scale: Float, alpha: Float, onClick: () -> Unit)
 {
@@ -701,6 +860,27 @@ fun AppIcon(app: AppInfo, x: Float, y: Float, scale: Float, alpha: Float, onClic
             modifier = Modifier.padding(start = 8.dp)
         )
     }
+}
+
+@Composable
+fun GridZoomAppIcon(app: AppInfo, x: Float, y: Float, itemWidth: androidx.compose.ui.unit.Dp, itemHeight: androidx.compose.ui.unit.Dp, onClick: () -> Unit)
+{
+	val density = LocalDensity.current
+	val bitmap = remember(app.icon) { app.icon.toBitmap(width = 128, height = 128).asImageBitmap() }
+
+	Column(
+		horizontalAlignment = Alignment.CenterHorizontally,
+		modifier = Modifier
+			.size(width = itemWidth, height = itemHeight)
+			.offset{ IntOffset(x.roundToInt(), y.roundToInt()) }
+			.clickable{ onClick() }
+	) {
+		Image(
+		bitmap = bitmap,
+		contentDescription = app.name,
+		modifier = Modifier.size(64.dp)
+		)
+	}
 }
 
 @Composable
