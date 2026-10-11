@@ -1,7 +1,8 @@
 # TGLM-The-Great-Mobile-Launcher
-A custom Mobile Launcher for android. Will soon be the top. i hope. i wish.
+A custom Mobile Launcher for android. Will soon be the top. i hope. i wish. i expect
 
-![img_1.png](img_1.png)
+![img_1.png](img_1.png) <img width="268" height="518" alt="image" src="https://github.com/user-attachments/assets/e42f5a18-bd8e-4730-8c40-593dc5f73dc3" />
+
 Requirements and build
 To run:
 1. Android version greater than 10, tested on android 13 and 15
@@ -28,10 +29,12 @@ Current Feature List:
 2. Quick jump alphabet bar
 3. A cooool background
 4. Support to display infinite apps and open them tooo
+5. Add your own cooooool (but not as cool) background
+6. Choose between 3 intricately designed appscreen layouts, the radial, the proximity magnifier, and the grid scroll
 
 Future possibilities:
 INFINITE
-but mainly clock, performance, ui overhaul and so on
+but multiple screens, widgets and more
 
 
 **Important**
