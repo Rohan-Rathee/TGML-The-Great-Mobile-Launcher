@@ -8,7 +8,9 @@ https://github.com/user-attachments/assets/1f1002ba-9776-43cb-a848-0dd45804ce77
 
 prep Week 2 result->
 
-Uploading WhatsApp Video 2026-10-13 at 9.55.07 AM.mp4…
+https://github.com/user-attachments/assets/ad43c48d-9326-4958-addc-f41a7ba108e7
+
+
 
 
 
