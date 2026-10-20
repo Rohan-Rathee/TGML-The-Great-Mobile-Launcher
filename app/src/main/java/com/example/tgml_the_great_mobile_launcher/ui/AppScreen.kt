@@ -23,11 +23,20 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import com.example.tgml_the_great_mobile_launcher.AppInfo
 import com.example.tgml_the_great_mobile_launcher.LauncherLayout
+import com.example.tgml_the_great_mobile_launcher.gestures.GestureType
+import com.example.tgml_the_great_mobile_launcher.gestures.detectLauncherSwipes
 import com.example.tgml_the_great_mobile_launcher.layouts.LauncherLayoutView
 
 @Composable
-fun AppScreen(apps: List<AppInfo>, backgroundUri: Uri?, layout: LauncherLayout, onPickBackground: () -> Unit, onLayoutChange: (LauncherLayout) -> Unit, onAppClick: (AppInfo) -> Unit)
-{
+fun AppScreen(
+	apps: List<AppInfo>,
+	backgroundUri: Uri?,
+	layout: LauncherLayout,
+	onPickBackground: () -> Unit,
+	onLayoutChange: (LauncherLayout) -> Unit,
+	onAppClick: (AppInfo) -> Unit,
+	onGesture: (GestureType) -> Unit
+){
 	var editMode by remember { mutableStateOf(false) }
 	var settingsOpen by remember { mutableStateOf(false) }
 	val launcherScale by animateFloatAsState(
@@ -59,6 +68,10 @@ fun AppScreen(apps: List<AppInfo>, backgroundUri: Uri?, layout: LauncherLayout, 
 					scaleX = launcherScale
 					scaleY = launcherScale
 				}
+				.detectLauncherSwipes(
+					edgeOnly = true,
+					onSwipe = onGesture
+				)
 		) {
 
 			LauncherBackground(

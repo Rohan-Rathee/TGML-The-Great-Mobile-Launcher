@@ -32,8 +32,13 @@ fun LauncherBackground(backgroundUri: Uri?, blurred: Boolean = false)
 		} else{
 			withContext(Dispatchers.IO){
 				try {
-					context.contentResolver.openInputStream(backgroundUri)?.use { BitmapFactory.decodeStream(it) }
-				} catch (_: Exception){
+					context.contentResolver.openInputStream(backgroundUri)?.use { inputStream ->
+						val options = BitmapFactory.Options().apply {
+							inSampleSize = 2
+						}
+						BitmapFactory.decodeStream(inputStream, null, options)
+					}
+				} catch (_: Throwable){
 					null
 				}
 			}

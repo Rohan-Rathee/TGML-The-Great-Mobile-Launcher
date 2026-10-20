@@ -4,37 +4,49 @@ plugins {
 }
 
 android {
-    namespace = "com.example.tgml_the_great_mobile_launcher"
-    compileSdk {
-        version = release(37)
-    }
+	namespace = "com.example.tgml_the_great_mobile_launcher"
+	compileSdk = 37 // Direct assignment is standard in modern Gradle
 
-    defaultConfig {
-        applicationId = "com.example.tgml_the_great_mobile_launcher"
-        minSdk = 24
-        targetSdk = 37
-        versionCode = 1
-        versionName = "1.0"
+	// 1. ADD SIGNING CONFIGURATION
+	signingConfigs {
+		create("release") {
+			storeFile = file(System.getProperty("user.home") + "/.android/debug.keystore")
+			storePassword = "android"
+			keyAlias = "androiddebugkey"
+			keyPassword = "android"
+		}
+	}
 
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-    }
+	defaultConfig {
+		applicationId = "com.example.tgml_the_great_mobile_launcher"
+		minSdk = 24
+		targetSdk = 37
+		versionCode = 1
+		versionName = "1.0"
 
-    buildTypes {
-        release {
-            optimization {
-                enable = true
-                packageScope = setOf("androidx.**", "kotlin.**", "kotlinx.**")
-            }
-        }
-    }
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
-    }
-    buildFeatures {
-        compose = true
-    }
+		testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+	}
+
+	buildTypes {
+		release {
+			// 2. ASSIGN THE SIGNING CONFIG TO THE RELEASE BUILD
+			signingConfig = signingConfigs.getByName("release")
+
+			optimization {
+				enable = true
+				packageScope = setOf("androidx.**", "kotlin.**", "kotlinx.**")
+			}
+		}
+	}
+	compileOptions {
+		sourceCompatibility = JavaVersion.VERSION_11
+		targetCompatibility = JavaVersion.VERSION_11
+	}
+	buildFeatures {
+		compose = true
+	}
 }
+
 
 dependencies {
     implementation(platform(libs.androidx.compose.bom))

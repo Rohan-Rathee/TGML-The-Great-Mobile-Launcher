@@ -10,9 +10,9 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.mutableStateOf
 import androidx.core.content.edit
 import androidx.core.net.toUri
-import com.example.tgml_the_great_mobile_launcher.ui.AppScreen
+import com.example.tgml_the_great_mobile_launcher.data.GesturePreferences
+import com.example.tgml_the_great_mobile_launcher.ui.LauncherNavigation
 import com.example.tgml_the_great_mobile_launcher.ui.theme.TGMLTheGreatMobileLauncherTheme
-
 
 class MainActivity : ComponentActivity()
 {
@@ -49,10 +49,12 @@ class MainActivity : ComponentActivity()
 		} catch (_: Exception) {
 			LauncherLayout.RADIAL
 		}
-		setContent { TGMLTheGreatMobileLauncherTheme { AppScreen(
+		val gestureMappings = GesturePreferences.load(this)
+		setContent { TGMLTheGreatMobileLauncherTheme { LauncherNavigation (
 			apps = apps,
 			backgroundUri = selectedBackgroundUri.value,
 			layout = selectedLayout.value,
+			gestureMappings = gestureMappings,
 			onPickBackground = {
 				backgroundPicker.launch(arrayOf("image/*"))
 			},

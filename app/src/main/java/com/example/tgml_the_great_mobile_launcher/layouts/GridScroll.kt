@@ -17,11 +17,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.graphics.drawable.toBitmap
 import com.example.tgml_the_great_mobile_launcher.AppInfo
+import com.example.tgml_the_great_mobile_launcher.toSafeImageBitmap
 
 @Composable
 fun GridScroll(apps: List<AppInfo>, onAppClick: (AppInfo) -> Unit)
@@ -51,10 +50,8 @@ fun GridScroll(apps: List<AppInfo>, onAppClick: (AppInfo) -> Unit)
 @Composable
 fun GridAppIcon(app: AppInfo, onClick: () -> Unit)
 {
-	val bitmap = remember(app.icon) {
-		app.icon
-			.toBitmap(width = 128, height = 128)
-			.asImageBitmap()
+	val bitmap = remember(key1 = app.packageName, key2 = app.activityName) {
+		app.icon.toSafeImageBitmap(width = 128, height = 128)
 	}
 
 	Column(

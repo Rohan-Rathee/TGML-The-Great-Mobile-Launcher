@@ -27,7 +27,6 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
@@ -35,8 +34,8 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.graphics.drawable.toBitmap
 import com.example.tgml_the_great_mobile_launcher.AppInfo
+import com.example.tgml_the_great_mobile_launcher.toSafeImageBitmap
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -244,7 +243,9 @@ fun AppIcon(app: AppInfo, x: Float, y: Float, scale: Float, alpha: Float, onClic
 
 	val itemHeightPx = with(density) { itemHeight.toPx() }
 
-	val bitmap = remember(app.icon) { app.icon.toBitmap(width = 128, height = 128).asImageBitmap() }
+	val bitmap = remember(key1 = app.packageName, key2 = app.activityName) {
+		app.icon.toSafeImageBitmap(width = 128, height = 128)
+	}
 
 	Row(
 		verticalAlignment = Alignment.CenterVertically,

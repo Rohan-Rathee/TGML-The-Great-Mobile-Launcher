@@ -16,15 +16,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.graphics.drawable.toBitmap
 import com.example.tgml_the_great_mobile_launcher.AppInfo
+import com.example.tgml_the_great_mobile_launcher.toSafeImageBitmap
 import kotlin.math.roundToInt
 
 @Composable
@@ -42,12 +41,14 @@ fun GridZoom(apps: List<AppInfo>, onAppClick: (AppInfo) -> Unit)
 		val cellWidth = with(density) { 90.dp.toPx() }
 		val cellHeight = with(density) { 75.dp.toPx() }
 
+		if (cellWidth <= 0f || cellHeight <= 0f) return@BoxWithConstraints
+
 		val bestLayout = (1..apps.size).map { cols ->
 			val rows = (apps.size + cols - 1) / cols
-			val scaleX = screenWidth / (cols * cellWidth)
-			val scaleY = screenHeight / (rows * cellHeight)
+			val scaleX = if (cols * cellWidth > 0f) screenWidth / (cols * cellWidth) else 1f
+			val scaleY = if (rows * cellHeight > 0f) screenHeight / (rows * cellHeight) else 1f
 			Triple(cols, rows, minOf(scaleX, scaleY, 1f))
-		}.maxByOrNull { it.third } !!
+		}.maxByOrNull { it.third } ?: Triple(1, apps.size, 1f)
 		ZoomGridContent(
 			apps =  apps,
 			columns = bestLayout.first,
@@ -162,7 +163,9 @@ fun GridZoomAppIcon(app: AppInfo, x: Float, y: Float, scale: Float)
 	val itemWidthPx = with(density) { itemWidth.toPx() }
 	val itemHeightPx = with(density) { itemHeight.toPx() }
 
-	val bitmap = remember(app.icon) { app.icon.toBitmap(width = 128, height = 128).asImageBitmap() }
+	val bitmap = remember(key1 = app.packageName, key2 = app.activityName) {
+		app.icon.toSafeImageBitmap(width = 128, height = 128)
+	}
 	Column(
 		horizontalAlignment = Alignment.CenterHorizontally,
 		modifier = Modifier
