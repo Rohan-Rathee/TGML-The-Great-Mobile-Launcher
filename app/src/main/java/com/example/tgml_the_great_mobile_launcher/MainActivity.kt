@@ -12,12 +12,14 @@ import androidx.core.content.edit
 import androidx.core.net.toUri
 import com.example.tgml_the_great_mobile_launcher.data.GesturePreferences
 import com.example.tgml_the_great_mobile_launcher.ui.LauncherNavigation
+import com.example.tgml_the_great_mobile_launcher.ui.PageTransitionStyle
 import com.example.tgml_the_great_mobile_launcher.ui.theme.TGMLTheGreatMobileLauncherTheme
 
 class MainActivity : ComponentActivity()
 {
 	private val selectedBackgroundUri = mutableStateOf<Uri?>(null)
 	private val selectedLayout = mutableStateOf(LauncherLayout.RADIAL)
+    private val selectedTransitionStyle = mutableStateOf(PageTransitionStyle.SLIDE)
 	private val backgroundPicker = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
 		if (uri != null) {
 			try{
@@ -49,12 +51,32 @@ class MainActivity : ComponentActivity()
 		} catch (_: Exception) {
 			LauncherLayout.RADIAL
 		}
+        val savedTransition = getSharedPreferences("launcher", MODE_PRIVATE).getString("page_transition", PageTransitionStyle.SLIDE.name)
+        selectedTransitionStyle.value = try {
+            PageTransitionStyle.valueOf(savedTransition ?: PageTransitionStyle.SLIDE.name)
+        } catch (_: Exception) {
+            PageTransitionStyle.SLIDE
+        }
+        val homePageCount = getSharedPreferences("launcher", MODE_PRIVATE).getInt("home_page_count", 1).coerceAtLeast(1)
 		val gestureMappings = GesturePreferences.load(this)
 		setContent { TGMLTheGreatMobileLauncherTheme { LauncherNavigation (
 			apps = apps,
 			backgroundUri = selectedBackgroundUri.value,
 			layout = selectedLayout.value,
 			gestureMappings = gestureMappings,
+            initialHomePageCount = homePageCount,
+            transitionStyle = selectedTransitionStyle.value,
+            onHomePageCountChange = { count ->
+                getSharedPreferences("launcher", MODE_PRIVATE).edit {
+                    putInt("home_page_count", count.coerceAtLeast(1))
+                }
+            },
+            onTransitionStyleChange = { style ->
+                selectedTransitionStyle.value = style
+                getSharedPreferences("launcher", MODE_PRIVATE).edit {
+                    putString("page_transition", style.name)
+                }
+            },
 			onPickBackground = {
 				backgroundPicker.launch(arrayOf("image/*"))
 			},
@@ -84,7 +106,7 @@ class MainActivity : ComponentActivity()
                     activityName = it.activityInfo.name,
                     icon = it.loadIcon(packageManager)
                 )
-            }
+			}
             .sortedBy { it.name.lowercase() }
     }
 

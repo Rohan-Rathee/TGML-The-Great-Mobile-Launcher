@@ -6,6 +6,11 @@ object DefaultGestureMappings {
 			GestureType.SWIPE_UP,
 			GestureAction.OPEN_APP_DRAWER,
 			GestureContext.HOME
+		),
+		GestureMapping(
+			gesture = GestureType.SWIPE_DOWN,
+			action = GestureAction.GO_HOME,
+			context = GestureContext.APP_DRAWER
 		)
 	)
 }

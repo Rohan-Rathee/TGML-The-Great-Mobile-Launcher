@@ -20,7 +20,7 @@ import androidx.compose.ui.unit.sp
 import com.example.tgml_the_great_mobile_launcher.LauncherLayout
 
 @Composable
-fun LauncherSettings(currentLayout: LauncherLayout, onLayoutChange: (LauncherLayout) -> Unit, onClose: () -> Unit)
+fun LauncherSettings(currentLayout: LauncherLayout, onLayoutChange: (LauncherLayout) -> Unit, currentTransitionStyle: PageTransitionStyle, onTransitionStyleChange: (PageTransitionStyle) -> Unit, onClose: () -> Unit)
 {
 	Box(
 		modifier = Modifier
@@ -69,6 +69,22 @@ fun LauncherSettings(currentLayout: LauncherLayout, onLayoutChange: (LauncherLay
 					onLayoutChange(LauncherLayout.GRID_ZOOM)
 				}
 			)
+
+			Text(
+				text = "Page Transition",
+				color = Color.White,
+				fontSize = 18.sp
+			)
+
+			LayoutOption("Slide", currentTransitionStyle == PageTransitionStyle.SLIDE, true) {
+				onTransitionStyleChange(PageTransitionStyle.SLIDE)
+			}
+			LayoutOption("Fade", currentTransitionStyle == PageTransitionStyle.FADE, true) {
+				onTransitionStyleChange(PageTransitionStyle.FADE)
+			}
+			LayoutOption("Slide + Fade", currentTransitionStyle == PageTransitionStyle.SLIDE_FADE, true) {
+				onTransitionStyleChange(PageTransitionStyle.SLIDE_FADE)
+			}
 
 			Text(
 				text = "Close",

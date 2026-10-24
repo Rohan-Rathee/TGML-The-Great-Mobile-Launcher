@@ -50,8 +50,8 @@ fun RadialApps(apps: List<AppInfo>, onAppClick: (AppInfo) -> Unit)
 {
 	if (apps.isEmpty()) return
 
-	var rotation by remember { mutableFloatStateOf(-45f) }
-	var momentumJob by remember { mutableStateOf<Job?>(null) }
+	var rotation by remember(apps) { mutableFloatStateOf(-45f) }
+	var momentumJob by remember(apps) { mutableStateOf<Job?>(null) }
 
 	BoxWithConstraints(
 		modifier = Modifier.fillMaxSize()

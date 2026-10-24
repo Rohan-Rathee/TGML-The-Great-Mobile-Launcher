@@ -15,9 +15,7 @@ object GesturePreferences {
 		val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 		val entries = prefs.all.filterKeys { it.startsWith(PREFIX) }
 
-		if (entries.isEmpty()) return DefaultGestureMappings.mappings
-
-		return entries.mapNotNull { (key, value) ->
+		val savedMappings = entries.mapNotNull { (key, value) ->
 			val parts = key.removePrefix(PREFIX).split(":")
 			if (parts.size != 2 || value !is String) return@mapNotNull null
 
@@ -30,6 +28,13 @@ object GesturePreferences {
 				null
 			}
 		}
+
+		val missingDefaults = DefaultGestureMappings.mappings.filterNot { default ->
+			savedMappings.any { saved ->
+				saved.context == default.context && saved.gesture == default.gesture
+			}
+		}
+		return missingDefaults + savedMappings
 	}
 
 	fun save(context: Context, mappings: List<GestureMapping>) {

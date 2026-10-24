@@ -30,7 +30,7 @@ import kotlin.math.roundToInt
 fun GridZoom(apps: List<AppInfo>, onAppClick: (AppInfo) -> Unit)
 {
 	if (apps.isEmpty()) return
-	var hoveredIndex by remember { mutableStateOf<Int?>(null)}
+	var hoveredIndex by remember(apps) { mutableStateOf<Int?>(null)}
 	BoxWithConstraints(
 		modifier = Modifier.fillMaxSize()
 	){
