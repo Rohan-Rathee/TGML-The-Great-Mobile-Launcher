@@ -8,8 +8,9 @@ import kotlin.math.abs
 
 fun Modifier.detectLauncherSwipes(
 	edgeOnly: Boolean = false,
+	verticalOnly: Boolean = false,
 	onSwipe: (GestureType) -> Unit
-): Modifier = pointerInput(edgeOnly, onSwipe){
+): Modifier = pointerInput(edgeOnly, verticalOnly, onSwipe){
 	var startX = 0f
 	var startY = 0f
 	var totalX = 0f
@@ -39,12 +40,18 @@ fun Modifier.detectLauncherSwipes(
 		onDragEnd = {
 			if (!validStart) return@detectDragGestures
 
-			if (abs(totalX) >= threshold && abs(totalX) > abs(totalY)) {
+			if (!verticalOnly &&
+				abs(totalX) >= threshold &&
+				abs(totalX) > abs(totalY)
+			) {
 				onSwipe(
 					if (totalX > 0f) GestureType.SWIPE_RIGHT
 					else GestureType.SWIPE_LEFT
 				)
-			} else if (abs(totalY) >= threshold) {
+			} else if (
+				abs(totalY) >= threshold &&
+				abs(totalY) > abs(totalX)
+			) {
 				onSwipe(
 					if (totalY > 0f) GestureType.SWIPE_DOWN
 					else GestureType.SWIPE_UP

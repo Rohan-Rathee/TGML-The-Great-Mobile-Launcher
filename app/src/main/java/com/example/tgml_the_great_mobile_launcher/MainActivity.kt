@@ -57,7 +57,7 @@ class MainActivity : ComponentActivity()
         } catch (_: Exception) {
             PageTransitionStyle.SLIDE
         }
-        val homePageCount = getSharedPreferences("launcher", MODE_PRIVATE).getInt("home_page_count", 1).coerceAtLeast(1)
+		val homePageCount = getSharedPreferences("launcher", MODE_PRIVATE).getInt("home_page_count", 1).coerceAtLeast(1)
 		val gestureMappings = GesturePreferences.load(this)
 		setContent { TGMLTheGreatMobileLauncherTheme { LauncherNavigation (
 			apps = apps,

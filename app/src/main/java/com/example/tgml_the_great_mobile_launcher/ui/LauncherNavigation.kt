@@ -38,7 +38,10 @@ fun LauncherNavigation(
     var homePage by rememberSaveable { mutableStateOf(0) }
     var homePageCount by rememberSaveable { mutableStateOf(initialHomePageCount.coerceAtLeast(1)) }
     var drawerPage by rememberSaveable { mutableStateOf(0) }
-    val drawerPageCount = maxOf(1, (apps.size + APP_DRAWER_PAGE_SIZE - 1) / APP_DRAWER_PAGE_SIZE)
+    val drawerPageCount = if (layout == LauncherLayout.MULTI_PAGE) {
+		maxOf(1, (apps.size + APP_DRAWER_PAGE_SIZE - 1) / APP_DRAWER_PAGE_SIZE)
+    } else 1
+
     val handler = remember(gestureMappings) { GestureHandler(gestureMappings) }
 
     LaunchedEffect(initialHomePageCount) {
@@ -111,12 +114,21 @@ fun LauncherNavigation(
         )
     } else {
         HomeScreen(
-            backgroundUri = backgroundUri,
-            page = homePage,
-            pageCount = homePageCount,
-            transitionStyle = transitionStyle,
-            onPageSelected = { homePage = it.coerceIn(0, homePageCount - 1) },
-            onGesture = ::handleGesture
+	        backgroundUri = backgroundUri,
+	        page = homePage,
+	        pageCount = homePageCount,
+	        transitionStyle = transitionStyle,
+	        onPageSelected = { homePage = it.coerceIn(0, homePageCount - 1) },
+	        onGesture = ::handleGesture,
+	        layout = layout,
+	        onAddHomeScreen = {
+				homePageCount +=1
+		        homePage = homePageCount -1
+		        onHomePageCountChange(homePageCount)
+	        },
+	        onPickBackground = onPickBackground,
+	        onLayoutChange = onLayoutChange,
+	        onTransitionStyleChange = onTransitionStyleChange
         )
     }
 }

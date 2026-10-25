@@ -70,6 +70,15 @@ fun LauncherSettings(currentLayout: LauncherLayout, onLayoutChange: (LauncherLay
 				}
 			)
 
+			LayoutOption(
+				name = "Multi-page",
+				selected = currentLayout == LauncherLayout.MULTI_PAGE,
+				enabled = true,
+				onClick = {
+					onLayoutChange(LauncherLayout.MULTI_PAGE)
+				}
+			)
+
 			Text(
 				text = "Page Transition",
 				color = Color.White,

@@ -19,6 +19,7 @@ enum class LauncherLayout
 	RADIAL,
 	GRID_SCROLL,
 	GRID_ZOOM,
+	MULTI_PAGE,
 }
 
 fun Drawable.toSafeImageBitmap(width: Int = 128, height: Int = 128): ImageBitmap {

@@ -69,27 +69,48 @@ fun AppScreen(
                     scaleX = launcherScale
                     scaleY = launcherScale
                 }
-                .detectHorizontalPageSwipes(onSwipe = onGesture)
-                .detectLauncherSwipes(edgeOnly = true, onSwipe = onGesture)
+	            .then(
+					if (layout == LauncherLayout.MULTI_PAGE){
+						Modifier.detectHorizontalPageSwipes(onSwipe = onGesture)
+					} else Modifier
+				)
+				.detectLauncherSwipes(edgeOnly = true, onSwipe = onGesture)
         ) {
             LauncherBackground(backgroundUri = backgroundUri)
-            val safePage = drawerPage.coerceIn(0, (drawerPageCount - 1).coerceAtLeast(0))
-            AnimatedPageContent(page = safePage, style = transitionStyle, modifier = Modifier.fillMaxSize()) { targetPage ->
-                val pageApps = apps.drop(targetPage * APP_DRAWER_PAGE_SIZE).take(APP_DRAWER_PAGE_SIZE)
-                LauncherLayoutView(
-                    layout = layout,
-                    apps = pageApps,
-                    onAppClick = onAppClick
-                )
-            }
-            PageIndicator(
-                page = safePage,
-                pageCount = drawerPageCount,
-                onPageSelected = onDrawerPageSelected,
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = 12.dp)
-            )
+
+	        if (layout == LauncherLayout.MULTI_PAGE) {
+				val safePage = drawerPage.coerceIn (0, (drawerPageCount - 1).coerceAtLeast(0))
+
+		        AnimatedPageContent(
+					page = safePage,
+					style = transitionStyle,
+					modifier = Modifier.fillMaxSize()
+				) {
+					targetPage ->
+					val pageApps = apps
+						.drop(targetPage * APP_DRAWER_PAGE_SIZE)
+						.take(APP_DRAWER_PAGE_SIZE)
+			        LauncherLayoutView(
+						layout = layout,
+						apps = pageApps,
+						onAppClick = onAppClick
+					)
+		        }
+		        PageIndicator(
+					page = safePage,
+					pageCount = drawerPageCount,
+					onPageSelected = onDrawerPageSelected,
+					modifier = Modifier
+						.align(Alignment.BottomCenter)
+						.padding(bottom = 12.dp)
+				)
+	        } else {
+		        LauncherLayoutView(
+					layout = layout,
+					apps = apps,
+					onAppClick = onAppClick
+				)
+	        }
         }
         AnimatedVisibility(
             visible = editMode,

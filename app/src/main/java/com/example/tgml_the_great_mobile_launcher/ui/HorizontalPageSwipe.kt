@@ -19,7 +19,7 @@ fun Modifier.detectHorizontalPageSwipes(onSwipe: (GestureType) -> Unit): Modifie
         val startedAtEdge = down.position.x <= edgeWidth || down.position.x >= size.width - edgeWidth ||
             down.position.y <= edgeWidth || down.position.y >= size.height - edgeWidth
 	        var total = Offset.Zero
-        var horizontal = false
+	    var horizontal = false
         var tracking = true
         while (tracking) {
             val event = awaitPointerEvent(PointerEventPass.Initial)

@@ -28,5 +28,12 @@ fun LauncherLayoutView(layout: LauncherLayout, apps: List<AppInfo>, onAppClick: 
 				onAppClick = onAppClick
 			)
 		}
+
+		LauncherLayout.MULTI_PAGE -> {
+			GridScroll(
+				apps = apps,
+				onAppClick = onAppClick
+			)
+		}
 	}
 }
