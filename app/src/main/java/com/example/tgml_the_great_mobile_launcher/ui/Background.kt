@@ -28,7 +28,7 @@ fun LauncherBackground(backgroundUri: Uri?, blurred: Boolean = false)
 		key1 = backgroundUri
 	){
 		value = if (backgroundUri == null){
-			null
+			null    
 		} else{
 			withContext(Dispatchers.IO){
 				try {
