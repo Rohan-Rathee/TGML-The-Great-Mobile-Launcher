@@ -17,7 +17,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 @Composable
-fun EditorBar(onBackgroundClick: () -> Unit, onAddScreen: () -> Unit, onSettingsClick: () -> Unit, onDone: () -> Unit)
+fun EditorBar(onBackgroundClick: () -> Unit, onAddScreen: () -> Unit, onSettingsClick: () -> Unit, onDone: () -> Unit, onAddAppClick: () -> Unit = {})
 {
 	Row(
 		horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -40,7 +40,11 @@ fun EditorBar(onBackgroundClick: () -> Unit, onAddScreen: () -> Unit, onSettings
 			label = "Add screen",
 			onClick = onAddScreen
 		)
-
+		EditorButton(
+			icon = "+",
+			label = "Add app",
+			onClick = onAddAppClick
+		)
 		EditorButton(
 			icon = "⚙",
 			label = "Settings",

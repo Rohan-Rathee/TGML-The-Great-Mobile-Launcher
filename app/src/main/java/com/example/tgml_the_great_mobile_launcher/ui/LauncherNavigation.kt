@@ -9,6 +9,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import com.example.tgml_the_great_mobile_launcher.AppInfo
 import com.example.tgml_the_great_mobile_launcher.LauncherLayout
 import com.example.tgml_the_great_mobile_launcher.gestures.GestureAction
@@ -16,6 +17,7 @@ import com.example.tgml_the_great_mobile_launcher.gestures.GestureContext
 import com.example.tgml_the_great_mobile_launcher.gestures.GestureHandler
 import com.example.tgml_the_great_mobile_launcher.gestures.GestureMapping
 import com.example.tgml_the_great_mobile_launcher.gestures.GestureType
+import com.example.tgml_the_great_mobile_launcher.home.HomeController
 
 private const val APP_DRAWER_PAGE_SIZE = 25
 
@@ -41,6 +43,10 @@ fun LauncherNavigation(
     val drawerPageCount = if (layout == LauncherLayout.MULTI_PAGE) {
 		maxOf(1, (apps.size + APP_DRAWER_PAGE_SIZE - 1) / APP_DRAWER_PAGE_SIZE)
     } else 1
+	val context = LocalContext.current
+	val homeController = remember(context) {
+		HomeController(context.applicationContext)
+	}
 
     val handler = remember(gestureMappings) { GestureHandler(gestureMappings) }
 
@@ -128,8 +134,11 @@ fun LauncherNavigation(
 	        },
 	        onPickBackground = onPickBackground,
 	        onLayoutChange = onLayoutChange,
-	        onTransitionStyleChange = onTransitionStyleChange
-        )
+	        onTransitionStyleChange = onTransitionStyleChange,
+	        apps = apps,
+	        homeController = homeController,
+	        onAppClick = onAppClick,
+		)
     }
 }
 

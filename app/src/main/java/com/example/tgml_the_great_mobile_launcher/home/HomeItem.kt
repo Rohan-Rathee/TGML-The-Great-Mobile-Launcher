@@ -4,7 +4,7 @@ package com.example.tgml_the_great_mobile_launcher.home
 import java.util.UUID
 
 enum class HomeItemType {
-	APP_SHORTCUT,
+		APP_SHORTCUT,
 	WIDGET,
 	FOLDER
 }
