@@ -78,4 +78,52 @@ class HomeController(context: Context) {
 	fun save() {
 		repository.saveItems(items.toList())
 	}
+
+	private val gridPreferences = HomeGridPreferences(context)
+
+	var grid: HomePlacementEngine.GridSize =
+		gridPreferences.load()
+		private set
+
+	fun updateGrid(columns: Int, rows: Int) {
+		val newGrid = HomePlacementEngine.GridSize(columns, rows)
+
+		val updated = items.toMutableList()
+
+		for (item in updated.filter { it.parentFolderId == null }) {
+			if (!HomePlacementEngine.canPlace(
+					items = updated,
+					page = item.page,
+					cellX = item.cellX,
+					cellY = item.cellY,
+					spanX = item.spanX,
+					spanY = item.spanY,
+					grid = newGrid,
+					ignoreItemId = item.id
+				)
+			) {
+				val position = HomePlacementEngine.findFirstAvailable(
+					items = updated,
+					page = item.page,
+					spanX = item.spanX,
+					spanY = item.spanY,
+					grid = newGrid
+				)
+
+				if (position != null) {
+					val index = updated.indexOfFirst { it.id == item.id }
+					updated[index] = item.copy(
+						cellX = position.first,
+						cellY = position.second
+					)
+				}
+			}
+		}
+
+		items.clear()
+		items.addAll(updated)
+		grid = newGrid
+		gridPreferences.save(newGrid)
+		save()
+	}
 }

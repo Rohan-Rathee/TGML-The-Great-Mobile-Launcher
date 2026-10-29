@@ -46,7 +46,11 @@ class HomeRepo(context: Context) {
 							spanY = item.optInt("spanY", 1).coerceAtLeast(1),
 							packageName = packageName,
 							activityName = activityName,
-							widgetId = widgetId
+							widgetId = widgetId,
+							folderName = item.optString("folderName")
+								.takeIf { it.isNotBlank() },
+							parentFolderId = item.optString("parentFolderId")
+								.takeIf { it.isNotBlank() }
 						)
 					)
 				}
@@ -72,6 +76,8 @@ class HomeRepo(context: Context) {
 					put("packageName", item.packageName)
 					put("activityName", item.activityName)
 					put("widgetId", item.widgetId)
+					put("folderName", item.folderName)
+					put("parentFolderId", item.parentFolderId)
 				}
 			)
 		}

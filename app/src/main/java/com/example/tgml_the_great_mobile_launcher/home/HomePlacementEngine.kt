@@ -7,7 +7,8 @@ object HomePlacementEngine {
 		val rows: Int = 6
 	) {
 		init {
-			require(columns > 0 && rows > 0)
+			require(columns in 3..10) { "Columns must be between 3 and 10" }
+			require(rows in 3..12) { "Rows must be between 3 and 12" }
 		}
 	}
 
@@ -30,7 +31,11 @@ object HomePlacementEngine {
 		}
 
 		return items.none { item ->
-			if (item.id == ignoreItemId || item.page != page) {
+			if (
+				item.id == ignoreItemId ||
+				item.page != page ||
+				item.parentFolderId != null
+			) {
 				false
 			} else {
 				val overlapsX =
@@ -47,12 +52,14 @@ object HomePlacementEngine {
 	}
 
 	fun findFirstAvailable(
+
 		items: List<HomeItem>,
 		page: Int,
 		spanX: Int = 1,
 		spanY: Int = 1,
 		grid: GridSize = GridSize()
 	): Pair<Int, Int>? {
+		if (spanX > grid.columns || spanY > grid.rows) return null
 		for (y in 0..(grid.rows - spanY)) {
 			for (x in 0..(grid.columns - spanX)) {
 				if (canPlace(items, page, x, y, spanX, spanY, grid)) {
