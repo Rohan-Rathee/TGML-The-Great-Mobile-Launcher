@@ -8,16 +8,19 @@ prep week 1 result->https://github.com/user-attachments/assets/1f1002ba-9776-43c
 
 prep Week 2 result->https://github.com/user-attachments/assets/ad43c48d-9326-4958-addc-f41a7ba108e7 
 
-Proper week 1 result-> (chronological week 3 ending in 26/10/2026)
+Proper week 1 result-> (chronological week 3 ending in 26/10/2026) ttps://github.com/user-attachments/assets/9c0170bc-5f82-46ff-9f7b-307702f562e9
 
-
-https://github.com/user-attachments/assets/9c0170bc-5f82-46ff-9f7b-307702f562e9
+Week 2 result <img width="268" height="518" alt="WhatsApp Image 2026-11-01 at 11 10 20 AM" src="https://github.com/user-attachments/assets/d96f2cc2-ca47-48ef-8a80-196cc03aa466" />
 
 
 Requirements and build
-To run:
-1. Android version greater than 10, tested on android 13 and 15
-2. To run, download APK in releases tab, set as home launcher et voila
+
+Running TGML
+
+1. Android 11 or newer. Tested on Android 13 and 15.
+2. Download the latest APK from the Releases tab.
+3. Install the APK.
+4. Set TGML as your default home launcher.
 
 To Build yourself you need:
 1. Android Studio
@@ -36,23 +39,30 @@ Set TGML as the launcher
 After install android will ask what launcher to use. Select TGML - The Great Mobile Launcher and choose always if you want it to be default
 
 Current Feature List:
-wk 1 
+   prep wk 1 
 1. Scrollable app arc with smooth slowdown
 2. Quick jump alphabet bar
 3. A cooool background
 4. Support to display infinite apps and open them tooo
 
-   wk2
+   prep wk2
 6. Add your own cooooool (but not as cool) background
 7. Choose between 3 intricately designed appscreen layouts, the radial, the proximity magnifier, and the grid scroll
 
 
-   wk 3 week ending in 26/10/2026
+   wk 1 week ending in 26/10/2026
 8. Multi page layout
 9. Transitions!!!!!!
 10. Home Screen!!!
 11. multi home screen!!!!!!!!!!!
 
+    wk 2  Home Screen Improvements
+12. Configurable Home Screen Grid
+13. Crosspage dragging of icons
+14. drag and drop to delete
+15. persistence of shortucts
+
+    
 Future possibilities:
 INFINITE
 widgets and more are priority
