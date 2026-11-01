@@ -6,19 +6,26 @@ import androidx.compose.runtime.mutableStateListOf
 
 class HomeController(context: Context) {
 	private val repository = HomeRepo(context)
+	private val gridPreferences = HomeGridPreferences(context)
+
+	var grid: HomePlacementEngine.GridSize = gridPreferences.load()
+		private set
 
 	val items = mutableStateListOf<HomeItem>().apply {
 		addAll(repository.loadItems())
 	}
 
 	fun itemsOnPage(page: Int): List<HomeItem> =
-		items.filter { it.page == page }
+		items.filter { it.page == page && it.parentFolderId == null }
+
+	fun itemsInFolder(folderId: String): List<HomeItem> =
+		items.filter { it.parentFolderId == folderId }
 
 	fun addAppShortcut(
 		packageName: String,
 		activityName: String,
 		page: Int,
-		grid: HomePlacementEngine.GridSize = HomePlacementEngine.GridSize()
+		grid: HomePlacementEngine.GridSize = this.grid
 	): Boolean {
 		if (items.any {
 				it.type == HomeItemType.APP_SHORTCUT &&
@@ -28,7 +35,7 @@ class HomeController(context: Context) {
 		) return false
 
 		val position = HomePlacementEngine.findFirstAvailable(
-			items = items,
+			items = items.filter { it.parentFolderId == null },
 			page = page,
 			grid = grid
 		) ?: return false
@@ -42,7 +49,6 @@ class HomeController(context: Context) {
 				cellY = position.second
 			)
 		)
-
 		save()
 		return true
 	}
@@ -52,10 +58,13 @@ class HomeController(context: Context) {
 		page: Int,
 		cellX: Int,
 		cellY: Int,
-		grid: HomePlacementEngine.GridSize = HomePlacementEngine.GridSize()
+		grid: HomePlacementEngine.GridSize = this.grid
 	): Boolean {
+		val item = items.find { it.id == itemId } ?: return false
+		if (item.parentFolderId != null) return false
+
 		val updated = HomePlacementEngine.moveItem(
-			items = items.toList(),
+			items = items.filter { it.parentFolderId == null },
 			itemId = itemId,
 			page = page,
 			cellX = cellX,
@@ -70,54 +79,184 @@ class HomeController(context: Context) {
 	}
 
 	fun removeItem(itemId: String): Boolean {
-		val removed = items.removeAll { it.id == itemId }
-		if (removed) save()
-		return removed
+		val item = items.find { it.id == itemId } ?: return false
+
+		if (item.type == HomeItemType.FOLDER) {
+			items.removeAll {
+				it.id == itemId || it.parentFolderId == itemId
+			}
+		} else {
+			items.remove(item)
+			item.parentFolderId?.let(::normalizeFolder)
+		}
+
+		save()
+		return true
 	}
 
-	fun save() {
-		repository.saveItems(items.toList())
+	fun createFolder(
+		firstItemId: String,
+		secondItemId: String,
+		name: String = "Folder"
+	): String? {
+		val first = items.find { it.id == firstItemId } ?: return null
+		val second = items.find { it.id == secondItemId } ?: return null
+
+		if (first.id == second.id ||
+			first.type != HomeItemType.APP_SHORTCUT ||
+			second.type != HomeItemType.APP_SHORTCUT ||
+			first.parentFolderId != null ||
+			second.parentFolderId != null ||
+			first.page != second.page
+		) return null
+
+		val folder = HomeItem.folder(
+			name = name,
+			page = first.page,
+			cellX = first.cellX,
+			cellY = first.cellY
+		)
+
+		items.removeAll { it.id == first.id || it.id == second.id }
+		items.add(folder)
+		items.add(first.copy(parentFolderId = folder.id, cellX = 0, cellY = 0))
+		items.add(second.copy(parentFolderId = folder.id, cellX = 0, cellY = 0))
+		save()
+		return folder.id
 	}
 
-	private val gridPreferences = HomeGridPreferences(context)
+	fun renameFolder(folderId: String, name: String): Boolean {
+		val cleanName = name.trim()
+		if (cleanName.isBlank()) return false
 
-	var grid: HomePlacementEngine.GridSize =
-		gridPreferences.load()
-		private set
+		val index = items.indexOfFirst {
+			it.id == folderId && it.type == HomeItemType.FOLDER
+		}
+		if (index == -1) return false
 
-	fun updateGrid(columns: Int, rows: Int) {
-		val newGrid = HomePlacementEngine.GridSize(columns, rows)
+		items[index] = items[index].copy(folderName = cleanName)
+		save()
+		return true
+	}
+
+	fun moveItemIntoFolder(itemId: String, folderId: String): Boolean {
+		val item = items.find { it.id == itemId } ?: return false
+		val folder = items.find {
+			it.id == folderId && it.type == HomeItemType.FOLDER
+		} ?: return false
+
+		if (item.type != HomeItemType.APP_SHORTCUT ||
+			item.parentFolderId != null ||
+			item.id == folder.id
+		) return false
+
+		val index = items.indexOfFirst { it.id == itemId }
+		items[index] = item.copy(
+			parentFolderId = folder.id,
+			cellX = 0,
+			cellY = 0,
+			page = folder.page
+		)
+		save()
+		return true
+	}
+
+	fun moveItemOutOfFolder(
+		itemId: String,
+		page: Int
+	): Boolean {
+		val item = items.find { it.id == itemId } ?: return false
+		val folderId = item.parentFolderId ?: return false
+
+		val position = HomePlacementEngine.findFirstAvailable(
+			items = items.filter { it.parentFolderId == null },
+			page = page,
+			spanX = item.spanX,
+			spanY = item.spanY,
+			grid = grid
+		) ?: return false
+
+		val index = items.indexOfFirst { it.id == itemId }
+		items[index] = item.copy(
+			parentFolderId = null,
+			page = page,
+			cellX = position.first,
+			cellY = position.second
+		)
+
+		normalizeFolder(folderId)
+		save()
+		return true
+	}
+
+	private fun normalizeFolder(folderId: String) {
+		val folder = items.find {
+			it.id == folderId && it.type == HomeItemType.FOLDER
+		} ?: return
+
+		val children = items.filter { it.parentFolderId == folderId }
+
+		when (children.size) {
+			0 -> items.remove(folder)
+			1 -> {
+				val child = children.first()
+				val index = items.indexOfFirst { it.id == child.id }
+				if (index >= 0) {
+					items[index] = child.copy(
+						parentFolderId = null,
+						page = folder.page,
+						cellX = folder.cellX,
+						cellY = folder.cellY
+					)
+				}
+				items.remove(folder)
+			}
+		}
+	}
+
+	fun updateGrid(columns: Int, rows: Int): Boolean {
+		val newGrid = runCatching {
+			HomePlacementEngine.GridSize(columns, rows)
+		}.getOrNull() ?: return false
 
 		val updated = items.toMutableList()
+		val rootItems = updated.filter { it.parentFolderId == null }
+		val placed = mutableListOf<HomeItem>()
 
-		for (item in updated.filter { it.parentFolderId == null }) {
-			if (!HomePlacementEngine.canPlace(
-					items = updated,
+		for (item in rootItems) {
+			val position = if (
+				HomePlacementEngine.canPlace(
+					items = placed,
 					page = item.page,
 					cellX = item.cellX,
 					cellY = item.cellY,
 					spanX = item.spanX,
 					spanY = item.spanY,
-					grid = newGrid,
-					ignoreItemId = item.id
+					grid = newGrid
 				)
 			) {
-				val position = HomePlacementEngine.findFirstAvailable(
-					items = updated,
+				item.cellX to item.cellY
+			} else {
+				HomePlacementEngine.findFirstAvailable(
+					items = placed,
 					page = item.page,
 					spanX = item.spanX,
 					spanY = item.spanY,
 					grid = newGrid
-				)
-
-				if (position != null) {
-					val index = updated.indexOfFirst { it.id == item.id }
-					updated[index] = item.copy(
-						cellX = position.first,
-						cellY = position.second
-					)
-				}
+				) ?: return false
 			}
+
+			placed.add(
+				item.copy(
+					cellX = position.first,
+					cellY = position.second
+				)
+			)
+		}
+
+		for (item in placed) {
+			val index = updated.indexOfFirst { it.id == item.id }
+			if (index >= 0) updated[index] = item
 		}
 
 		items.clear()
@@ -125,5 +264,10 @@ class HomeController(context: Context) {
 		grid = newGrid
 		gridPreferences.save(newGrid)
 		save()
+		return true
+	}
+
+	fun save() {
+		repository.saveItems(items.toList())
 	}
 }
