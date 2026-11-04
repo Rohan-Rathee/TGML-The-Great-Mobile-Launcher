@@ -58,11 +58,10 @@ import com.example.tgml_the_great_mobile_launcher.gestures.detectLauncherSwipes
 import com.example.tgml_the_great_mobile_launcher.home.HomeController
 import com.example.tgml_the_great_mobile_launcher.home.HomeItemType
 import com.example.tgml_the_great_mobile_launcher.home.HomePlacementEngine
+import com.example.tgml_the_great_mobile_launcher.home.folders.FolderIcon
 import com.example.tgml_the_great_mobile_launcher.toSafeImageBitmap
 import kotlin.math.floor
 
-private const val HOME_COLUMNS = 5
-private const val HOME_ROWS = 6
 
 @Composable
 	fun HomeScreen(
@@ -88,10 +87,12 @@ private const val HOME_ROWS = 6
 	var trashBounds by remember { mutableStateOf<Rect?>(null) }
 	var rootBounds by remember { mutableStateOf<Rect?>(null) }
 	var lastPointerRoot by remember { mutableStateOf(Offset.Zero) }
-
+	var openedFolderId by remember { mutableStateOf<String?>(null) }
+	var dragOffset by remember { mutableStateOf(Offset.Zero) }
+	var iconCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
 	val launcherScale by animateFloatAsState(
 		targetValue = if (editMode) 0.88f else 1f,
-		animationSpec = tween(300),
+			animationSpec = tween(300),
 		label = "homeLauncherScale"
 	)
 
@@ -135,27 +136,62 @@ private const val HOME_ROWS = 6
 							.fillMaxSize()
 							.padding(bottom = 96.dp)
 					) {
-						val cellWidth = maxWidth / HOME_COLUMNS
-						val cellHeight = maxHeight / HOME_ROWS
+						val grid = homeController.grid
+
+						val cellWidth = maxWidth / grid.columns
+						val cellHeight = maxHeight / grid.rows
 						val density = LocalDensity.current
 						val cellWidthPx = with(density) { cellWidth.toPx() }
 						val cellHeightPx = with(density) { cellHeight.toPx() }
-
 						homeController.itemsOnPage(targetPage)
-							.filter { it.type == HomeItemType.APP_SHORTCUT }
 							.forEach { item ->
+
+								if (item.type == HomeItemType.FOLDER) {
+									Box(
+										modifier = Modifier
+											.offset(
+												x = cellWidth * item.cellX,
+												y = cellHeight * item.cellY
+											)
+											.size(
+												width = cellWidth,
+												height = cellHeight
+											)
+											.clickable {
+												openedFolderId = item.id
+											},
+										contentAlignment = Alignment.Center
+									) {
+										FolderIcon(
+											folder = item,
+											contents = homeController.itemsInFolder(item.id),
+											apps = apps,
+											onClick = { openedFolderId = item.id }
+										)
+
+										if (editMode) {
+											Text(
+												text = "×",
+												color = Color.White,
+												modifier = Modifier
+													.align(Alignment.TopEnd)
+													.background(Color.Red, CircleShape)
+													.clickable {
+														homeController.removeItem(item.id)
+													}
+											)
+										}
+									}
+
+									return@forEach
+								}
+
+								if (item.type != HomeItemType.APP_SHORTCUT) return@forEach
+
 								val app = apps.find {
 									it.packageName == item.packageName &&
 											it.activityName == item.activityName
 								} ?: return@forEach
-
-								var iconCoordinates by remember(item.id) {
-									mutableStateOf<LayoutCoordinates?>(null)
-								}
-
-								var dragOffset by remember(item.id) {
-									mutableStateOf(Offset.Zero)
-								}
 								Box(
 									modifier = Modifier
 										.offset(
@@ -214,10 +250,10 @@ private const val HOME_ROWS = 6
 														val rawY = floor(
 															(item.cellY * cellHeightPx + dragOffset.y +
 																	cellHeightPx / 2f) / cellHeightPx
-														).toInt().coerceIn(0, HOME_ROWS - 1)
+														).toInt().coerceIn(0, grid.rows - 1)
 
 														val moved = if (destinationPage != targetPage) {
-															val edgeCellX = if (pageDelta > 0) 0 else HOME_COLUMNS - 1
+															val edgeCellX = if (pageDelta > 0) 0 else grid.columns - 1
 
 															val edgeMove = homeController.moveItem(
 																itemId = item.id,
@@ -230,8 +266,11 @@ private const val HOME_ROWS = 6
 																true
 															} else {
 																val fallback = HomePlacementEngine.findFirstAvailable(
-																	items = homeController.items.toList(),
-																	page = destinationPage
+																	items = homeController.items.filter {
+																		it.parentFolderId == null
+																	},
+																	page = destinationPage,
+																	grid = grid
 																)
 
 																fallback != null && homeController.moveItem(
@@ -245,8 +284,7 @@ private const val HOME_ROWS = 6
 															val rawX = floor(
 																(item.cellX * cellWidthPx + dragOffset.x +
 																		cellWidthPx / 2f) / cellWidthPx
-															).toInt().coerceIn(0, HOME_COLUMNS - 1)
-
+															).toInt().coerceIn(0, grid.columns - 1)
 															homeController.moveItem(
 																itemId = item.id,
 																page = targetPage,
@@ -306,10 +344,7 @@ private const val HOME_ROWS = 6
 												.align(Alignment.TopEnd)
 												.padding(3.dp)
 												.size(22.dp)
-												.background(
-													Color.Red,
-													CircleShape
-												)
+												.background(Color.Red, CircleShape)
 												.clickable {
 													homeController.removeItem(item.id)
 												},
@@ -321,8 +356,7 @@ private const val HOME_ROWS = 6
 												fontSize = 17.sp
 											)
 										}
-									}
-								}
+									}								}
 							}
 					}
 
@@ -437,7 +471,76 @@ private const val HOME_ROWS = 6
 				onClose = { settingsOpen = false }
 			)
 		}
+		openedFolderId?.let { folderId ->
+			val folder = homeController.items.find {
+				it.id == folderId &&
+						it.type == HomeItemType.FOLDER
+			}
 
+			if (folder == null) {
+				openedFolderId = null
+			} else {
+				val folderContents = homeController.itemsInFolder(folderId)
+
+				AlertDialog(
+					onDismissRequest = {
+						openedFolderId = null
+					},
+					title = {
+						Text(folder.folderName ?: "Folder")
+					},
+					text = {
+						LazyColumn {
+							items(
+								items = folderContents,
+								key = { it.id }
+							) { item ->
+								val app = apps.find {
+									it.packageName == item.packageName &&
+											it.activityName == item.activityName
+								}
+
+								if (app != null) {
+									Row(
+										modifier = Modifier
+											.fillMaxWidth()
+											.clickable {
+												openedFolderId = null
+												onAppClick(app)
+											}
+											.padding(vertical = 10.dp),
+										verticalAlignment = Alignment.CenterVertically
+									) {
+										Image(
+											bitmap = remember(
+												app.packageName,
+												app.activityName
+											) {
+												app.icon.toSafeImageBitmap(72, 72)
+											},
+											contentDescription = app.name,
+											modifier = Modifier.size(36.dp)
+										)
+
+										Text(
+											text = app.name,
+											modifier = Modifier.padding(start = 12.dp)
+										)
+									}
+								}
+							}
+						}
+					},
+					confirmButton = {
+						TextButton(onClick = {
+							openedFolderId = null
+						}) {
+							Text("Close")
+						}
+					}
+				)
+			}
+		}
 		if (appPickerOpen) {
 			AlertDialog(
 				onDismissRequest = { appPickerOpen = false },

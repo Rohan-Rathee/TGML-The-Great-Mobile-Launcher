@@ -63,8 +63,10 @@ class HomeController(context: Context) {
 		val item = items.find { it.id == itemId } ?: return false
 		if (item.parentFolderId != null) return false
 
-		val updated = HomePlacementEngine.moveItem(
-			items = items.filter { it.parentFolderId == null },
+		val rootItems = items.filter { it.parentFolderId == null }
+
+		val updatedRoots = HomePlacementEngine.moveItem(
+			items = rootItems,
 			itemId = itemId,
 			page = page,
 			cellX = cellX,
@@ -72,8 +74,14 @@ class HomeController(context: Context) {
 			grid = grid
 		) ?: return false
 
-		items.clear()
-		items.addAll(updated)
+		val updatedById = updatedRoots.associateBy { it.id }
+
+		for (index in items.indices) {
+			updatedById[items[index].id]?.let { updated ->
+				items[index] = updated
+			}
+		}
+
 		save()
 		return true
 	}
