@@ -32,10 +32,6 @@ android {
 			// 2. ASSIGN THE SIGNING CONFIG TO THE RELEASE BUILD
 			signingConfig = signingConfigs.getByName("release")
 
-			optimization {
-				enable = true
-				packageScope = setOf("androidx.**", "kotlin.**", "kotlinx.**")
-			}
 		}
 	}
 	compileOptions {
