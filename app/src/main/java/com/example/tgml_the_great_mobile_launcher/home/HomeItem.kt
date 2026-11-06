@@ -35,6 +35,14 @@ data class HomeItem(
 		if (type == HomeItemType.FOLDER) {
 			require(parentFolderId == null) { "A folder cannot be inside another folder" }
 		}
+		if (type == HomeItemType.WIDGET) {
+			require(widgetId != null && widgetId >= 0) {
+				"Widget requires a valid widget ID"
+			}
+			require(parentFolderId == null) {
+				"A widget cannot be inside a folder"
+			}
+		}
 	}
 
 	companion object {

@@ -53,6 +53,39 @@ class HomeController(context: Context) {
 		return true
 	}
 
+	fun addWidget(
+		widgetId: Int,
+		page: Int,
+		spanX: Int = 2,
+		spanY: Int = 2
+	): Boolean {
+		if (widgetId < 0 || spanX <= 0 || spanY <= 0) return false
+		if (spanX > grid.columns || spanY > grid.rows) return false
+		if (items.any { it.widgetId == widgetId }) return false
+
+		val position = HomePlacementEngine.findFirstAvailable(
+			items = items.filter { it.parentFolderId == null },
+			page = page,
+			spanX = spanX,
+			spanY = spanY,
+			grid = grid
+		) ?: return false
+
+		items.add(
+			HomeItem.widget(
+				widgetId = widgetId,
+				page = page,
+				cellX = position.first,
+				cellY = position.second,
+				spanX = spanX,
+				spanY = spanY
+			)
+		)
+
+		save()
+		return true
+	}
+
 	fun moveItem(
 		itemId: String,
 		page: Int,
