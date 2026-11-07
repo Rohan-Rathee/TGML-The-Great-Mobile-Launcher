@@ -1,8 +1,15 @@
 package com.example.tgml_the_great_mobile_launcher.ui
 
+import android.app.Activity
+import android.appwidget.AppWidgetManager
+import android.appwidget.AppWidgetProviderInfo
+import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -10,6 +17,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import com.example.tgml_the_great_mobile_launcher.AppInfo
 import com.example.tgml_the_great_mobile_launcher.LauncherLayout
 import com.example.tgml_the_great_mobile_launcher.gestures.GestureAction
@@ -18,6 +27,7 @@ import com.example.tgml_the_great_mobile_launcher.gestures.GestureHandler
 import com.example.tgml_the_great_mobile_launcher.gestures.GestureMapping
 import com.example.tgml_the_great_mobile_launcher.gestures.GestureType
 import com.example.tgml_the_great_mobile_launcher.home.HomeController
+import com.example.tgml_the_great_mobile_launcher.home.widgets.WidgetHostController
 
 private const val APP_DRAWER_PAGE_SIZE = 25
 
@@ -35,6 +45,7 @@ fun LauncherNavigation(
     onLayoutChange: (LauncherLayout) -> Unit,
     onAppClick: (AppInfo) -> Unit
 ) {
+
     var drawerOpen by rememberSaveable { mutableStateOf(false) }
     var openingGesture by rememberSaveable { mutableStateOf<GestureType?>(null) }
     var homePage by rememberSaveable { mutableStateOf(0) }
@@ -46,6 +57,92 @@ fun LauncherNavigation(
 	val context = LocalContext.current
 	val homeController = remember(context) {
 		HomeController(context.applicationContext)
+	}
+
+	val widgetHost = remember(context) {
+		WidgetHostController(context.applicationContext)
+	}
+
+	val widgetProviders = remember(widgetHost) {
+		widgetHost.getInstalledProviders()
+	}
+
+	val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+
+	DisposableEffect(lifecycleOwner, widgetHost) {
+		val observer = LifecycleEventObserver { _, event ->
+			when (event) {
+				Lifecycle.Event.ON_START -> widgetHost.startListening()
+				Lifecycle.Event.ON_STOP -> widgetHost.stopListening()
+				else -> Unit
+			}
+		}
+
+		lifecycleOwner.lifecycle.addObserver(observer)
+
+		onDispose {
+			lifecycleOwner.lifecycle.removeObserver(observer)
+		}
+	}
+
+	var pendingWidgetId by remember { mutableStateOf<Int?>(null) }
+	var pendingWidgetProvider by remember {
+		mutableStateOf<AppWidgetProviderInfo?>(null)
+	}
+
+	val configurationLauncher = rememberLauncherForActivityResult(
+		ActivityResultContracts.StartActivityForResult()
+	) { result ->
+		val widgetId = pendingWidgetId
+
+		if (widgetId != null) {
+			if (
+				result.resultCode == Activity.RESULT_OK &&
+				homeController.addWidget(widgetId, homePage)
+			) {
+			} else {
+				widgetHost.deleteWidget(widgetId)
+			}
+		}
+
+		pendingWidgetId = null
+		pendingWidgetProvider = null
+	}
+
+	val bindingLauncher = rememberLauncherForActivityResult(
+		ActivityResultContracts.StartActivityForResult()
+	) { result ->
+		val widgetId = pendingWidgetId
+		val provider = pendingWidgetProvider
+
+		if (widgetId != null && provider != null) {
+			if (result.resultCode == Activity.RESULT_OK) {
+				if (provider.configure != null) {
+					val configureIntent = Intent(
+						AppWidgetManager.ACTION_APPWIDGET_CONFIGURE
+					).apply {
+						component = provider.configure
+						putExtra(
+							AppWidgetManager.EXTRA_APPWIDGET_ID,
+							widgetId
+						)
+					}
+
+					configurationLauncher.launch(configureIntent)
+				} else {
+					if (!homeController.addWidget(widgetId, homePage)) {
+						widgetHost.deleteWidget(widgetId)
+					}
+
+					pendingWidgetId = null
+					pendingWidgetProvider = null
+				}
+			} else {
+				widgetHost.deleteWidget(widgetId)
+				pendingWidgetId = null
+				pendingWidgetProvider = null
+			}
+		}
 	}
 
     val handler = remember(gestureMappings) { GestureHandler(gestureMappings) }
@@ -61,6 +158,55 @@ fun LauncherNavigation(
         drawerOpen = false
         openingGesture = null
     }
+	fun startWidgetBinding(provider: AppWidgetProviderInfo) {
+		val widgetId = widgetHost.allocateWidgetId()
+
+		pendingWidgetId = widgetId
+		pendingWidgetProvider = provider
+
+		val bound = widgetHost.bindWidget(
+			widgetId = widgetId,
+			provider = provider.provider
+		)
+
+		if (bound) {
+			if (provider.configure != null) {
+				val configureIntent = Intent(
+					AppWidgetManager.ACTION_APPWIDGET_CONFIGURE
+				).apply {
+					component = provider.configure
+					putExtra(
+						AppWidgetManager.EXTRA_APPWIDGET_ID,
+						widgetId
+					)
+				}
+
+				configurationLauncher.launch(configureIntent)
+			} else {
+				if (!homeController.addWidget(widgetId, homePage)) {
+					widgetHost.deleteWidget(widgetId)
+				}
+
+				pendingWidgetId = null
+				pendingWidgetProvider = null
+			}
+		} else {
+			val bindIntent = Intent(
+				AppWidgetManager.ACTION_APPWIDGET_BIND
+			).apply {
+				putExtra(
+					AppWidgetManager.EXTRA_APPWIDGET_ID,
+					widgetId
+				)
+				putExtra(
+					AppWidgetManager.EXTRA_APPWIDGET_PROVIDER,
+					provider.provider
+				)
+			}
+
+			bindingLauncher.launch(bindIntent)
+		}
+	}
 
     fun reverseOf(gesture: GestureType): GestureType? = when (gesture) {
         GestureType.SWIPE_UP -> GestureType.SWIPE_DOWN
@@ -138,7 +284,9 @@ fun LauncherNavigation(
 	        apps = apps,
 	        homeController = homeController,
 	        onAppClick = onAppClick,
+	        widgetProviders = widgetProviders,
+	        onWidgetSelected = ::startWidgetBinding,
+	        widgetHost = widgetHost,
 		)
     }
 }
-

@@ -1,6 +1,8 @@
 
 package com.example.tgml_the_great_mobile_launcher.ui
 
+import WidgetRenderer
+import android.appwidget.AppWidgetProviderInfo
 import android.net.Uri
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
@@ -59,6 +61,8 @@ import com.example.tgml_the_great_mobile_launcher.home.HomeController
 import com.example.tgml_the_great_mobile_launcher.home.HomeItemType
 import com.example.tgml_the_great_mobile_launcher.home.HomePlacementEngine
 import com.example.tgml_the_great_mobile_launcher.home.folders.FolderIcon
+import com.example.tgml_the_great_mobile_launcher.home.widgets.WidgetHostController
+import com.example.tgml_the_great_mobile_launcher.home.widgets.WidgetPicker
 import com.example.tgml_the_great_mobile_launcher.toSafeImageBitmap
 import kotlin.math.floor
 
@@ -77,7 +81,10 @@ import kotlin.math.floor
 	layout: LauncherLayout,
 	onAddHomeScreen: () -> Unit,
 	onPickBackground: () -> Unit,
-				onLayoutChange: (LauncherLayout) -> Unit,
+	onLayoutChange: (LauncherLayout) -> Unit,
+	widgetProviders: List<AppWidgetProviderInfo>,
+	onWidgetSelected: (AppWidgetProviderInfo) -> Unit,
+	widgetHost: WidgetHostController,
 	onTransitionStyleChange: (PageTransitionStyle) -> Unit
 ) {
 	var editMode by remember { mutableStateOf(false) }
@@ -90,6 +97,7 @@ import kotlin.math.floor
 	var openedFolderId by remember { mutableStateOf<String?>(null) }
 	var dragOffset by remember { mutableStateOf(Offset.Zero) }
 	var iconCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
+	var widgetPickerOpen by remember { mutableStateOf(false) }
 	val launcherScale by animateFloatAsState(
 		targetValue = if (editMode) 0.88f else 1f,
 			animationSpec = tween(300),
@@ -185,6 +193,31 @@ import kotlin.math.floor
 
 									return@forEach
 								}
+
+								if (item.type == HomeItemType.WIDGET) {
+									val widgetId = item.widgetId ?: return@forEach
+
+									Box(
+										modifier = Modifier
+											.offset(
+												x = cellWidth * item.cellX,
+												y = cellHeight * item.cellY
+											)
+											.size(
+												width = cellWidth * item.spanX,
+												height = cellHeight * item.spanY
+											)
+									) {
+										WidgetRenderer(
+											widgetHost = widgetHost,
+											widgetId = widgetId,
+											modifier = Modifier.fillMaxSize()
+										)
+									}
+
+									return@forEach
+								}
+
 
 								if (item.type != HomeItemType.APP_SHORTCUT) return@forEach
 
@@ -416,6 +449,11 @@ import kotlin.math.floor
 						animationSpec = tween(300)
 					)
 		) {
+			TextButton(
+				onClick = { widgetPickerOpen = true }
+			) {
+				Text("Add widget")
+			}
 			EditorBar(
 				onBackgroundClick = onPickBackground,
 				onAddScreen = onAddHomeScreen,
@@ -540,6 +578,18 @@ import kotlin.math.floor
 					}
 				)
 			}
+		}
+		if (widgetPickerOpen) {
+			WidgetPicker(
+				providers = widgetProviders,
+				onWidgetSelected = { provider ->
+					widgetPickerOpen = false
+					onWidgetSelected(provider)
+				},
+				onDismiss = {
+					widgetPickerOpen = false
+				}
+			)
 		}
 		if (appPickerOpen) {
 			AlertDialog(
