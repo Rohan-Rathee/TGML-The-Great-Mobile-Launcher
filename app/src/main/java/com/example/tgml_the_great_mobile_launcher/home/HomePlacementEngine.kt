@@ -71,6 +71,21 @@ object HomePlacementEngine {
 		return null
 	}
 
+    fun resizeItem(
+        items: List<HomeItem>,
+        itemId: String,
+        spanX: Int,
+        spanY: Int,
+        grid: GridSize = GridSize()
+    ): List<HomeItem>? {
+        val item = items.find { it.id == itemId } ?: return null
+        if (item.type != HomeItemType.WIDGET) return null
+        if (!canPlace(items, item.page, item.cellX, item.cellY, spanX, spanY, grid, itemId)) return null
+        return items.map { current ->
+            if (current.id == itemId) current.copy(spanX = spanX, spanY = spanY) else current
+        }
+    }
+
 	fun moveItem(
 		items: List<HomeItem>,
 		itemId: String,

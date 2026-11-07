@@ -2,13 +2,16 @@ package com.example.tgml_the_great_mobile_launcher.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -17,12 +20,20 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 @Composable
-fun EditorBar(onBackgroundClick: () -> Unit, onAddScreen: () -> Unit, onSettingsClick: () -> Unit, onDone: () -> Unit, onAddAppClick: () -> Unit = {})
-{
+fun EditorBar(
+	onBackgroundClick: () -> Unit,
+	onAddScreen: () -> Unit,
+	onSettingsClick: () -> Unit,
+	onDone: () -> Unit,
+	onAddAppClick: () -> Unit = {},
+	onAddWidgetClick: () -> Unit = {}
+){
 	Row(
 		horizontalArrangement = Arrangement.spacedBy(8.dp),
 		verticalAlignment = Alignment.CenterVertically,
 		modifier = Modifier
+			.fillMaxWidth()
+			.horizontalScroll(rememberScrollState())
 			.padding(horizontal = 12.dp, vertical = 12.dp)
 			.background(
 				Color.Black.copy(alpha = 0.82f),
@@ -44,6 +55,11 @@ fun EditorBar(onBackgroundClick: () -> Unit, onAddScreen: () -> Unit, onSettings
 			icon = "+",
 			label = "Add app",
 			onClick = onAddAppClick
+		)
+		EditorButton(
+			icon = "▦",
+			label = "Add widget",
+			onClick = onAddWidgetClick
 		)
 		EditorButton(
 			icon = "⚙",

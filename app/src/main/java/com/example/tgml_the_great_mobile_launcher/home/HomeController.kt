@@ -86,6 +86,25 @@ class HomeController(context: Context) {
 		return true
 	}
 
+    fun resizeWidget(widgetItemId: String, spanX: Int, spanY: Int): Boolean {
+        if (spanX <= 0 || spanY <= 0) return false
+        val roots = items.filter { it.parentFolderId == null }
+        val resized = HomePlacementEngine.resizeItem(
+            items = roots,
+            itemId = widgetItemId,
+            spanX = spanX,
+            spanY = spanY,
+            grid = grid
+        ) ?: return false
+        val updated = resized.associateBy { it.id }
+        for (index in items.indices) updated[items[index].id]?.let { items[index] = it }
+        save()
+        return true
+    }
+
+    fun widgetIdForItem(itemId: String): Int? =
+        items.firstOrNull { it.id == itemId && it.type == HomeItemType.WIDGET }?.widgetId
+
 	fun moveItem(
 		itemId: String,
 		page: Int,

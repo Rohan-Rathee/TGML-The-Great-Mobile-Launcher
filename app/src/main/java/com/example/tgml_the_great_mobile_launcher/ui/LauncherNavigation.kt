@@ -79,9 +79,13 @@ fun LauncherNavigation(
 		}
 
 		lifecycleOwner.lifecycle.addObserver(observer)
+		if (lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
+			widgetHost.startListening()
+		}
 
 		onDispose {
 			lifecycleOwner.lifecycle.removeObserver(observer)
+			widgetHost.stopListening()
 		}
 	}
 
@@ -107,6 +111,20 @@ fun LauncherNavigation(
 
 		pendingWidgetId = null
 		pendingWidgetProvider = null
+	}
+
+	val widgetEditLauncher = rememberLauncherForActivityResult(
+		ActivityResultContracts.StartActivityForResult()
+	) {}
+
+	fun configureExistingWidget(widgetId: Int) {
+		val providerInfo = widgetHost.manager.getAppWidgetInfo(widgetId) ?: return
+		val configureComponent = providerInfo.configure ?: return
+		val configureIntent = Intent(AppWidgetManager.ACTION_APPWIDGET_CONFIGURE).apply {
+			component = configureComponent
+			putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
+		}
+		widgetEditLauncher.launch(configureIntent)
 	}
 
 	val bindingLauncher = rememberLauncherForActivityResult(
@@ -287,6 +305,7 @@ fun LauncherNavigation(
 	        widgetProviders = widgetProviders,
 	        onWidgetSelected = ::startWidgetBinding,
 	        widgetHost = widgetHost,
+	        onWidgetConfigure = ::configureExistingWidget,
 		)
     }
 }

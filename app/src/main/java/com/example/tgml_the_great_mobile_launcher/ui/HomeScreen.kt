@@ -1,7 +1,8 @@
 
 package com.example.tgml_the_great_mobile_launcher.ui
 
-import WidgetRenderer
+import com.example.tgml_the_great_mobile_launcher.home.widgets.WidgetRenderer
+import com.example.tgml_the_great_mobile_launcher.home.widgets.WidgetResizeHandler
 import android.appwidget.AppWidgetProviderInfo
 import android.net.Uri
 import androidx.compose.animation.AnimatedVisibility
@@ -85,6 +86,7 @@ import kotlin.math.floor
 	widgetProviders: List<AppWidgetProviderInfo>,
 	onWidgetSelected: (AppWidgetProviderInfo) -> Unit,
 	widgetHost: WidgetHostController,
+	onWidgetConfigure: (Int) -> Unit,
 	onTransitionStyleChange: (PageTransitionStyle) -> Unit
 ) {
 	var editMode by remember { mutableStateOf(false) }
@@ -196,28 +198,78 @@ import kotlin.math.floor
 
 								if (item.type == HomeItemType.WIDGET) {
 									val widgetId = item.widgetId ?: return@forEach
-
+									val isDragging = draggedItemId == item.id
+									val widgetCoordinates = remember(item.id) { mutableStateOf<LayoutCoordinates?>(null) }
 									Box(
 										modifier = Modifier
 											.offset(
-												x = cellWidth * item.cellX,
-												y = cellHeight * item.cellY
+												x = cellWidth * item.cellX + if (isDragging) with(density) { dragOffset.x.toDp() } else 0.dp,
+												y = cellHeight * item.cellY + if (isDragging) with(density) { dragOffset.y.toDp() } else 0.dp
 											)
-											.size(
-												width = cellWidth * item.spanX,
-												height = cellHeight * item.spanY
+											.size(width = cellWidth * item.spanX, height = cellHeight * item.spanY)
+											.onGloballyPositioned { widgetCoordinates.value = it }
+											.pointerInput(item.id, targetPage, cellWidthPx, cellHeightPx) {
+												detectDragGesturesAfterLongPress(
+													onDragStart = { position ->
+													editMode = true
+													draggedItemId = item.id
+													widgetCoordinates.value?.localToRoot(position)?.let { lastPointerRoot = it }
+													dragOffset = Offset.Zero
+												},
+												 onDrag = { change, amount ->
+													change.consume()
+													dragOffset += amount
+													widgetCoordinates.value?.localToRoot(change.position)?.let { lastPointerRoot = it }
+												},
+												 onDragEnd = {
+													val release = lastPointerRoot
+													if (trashBounds?.contains(release) == true) {
+														widgetHost.deleteWidget(widgetId)
+														homeController.removeItem(item.id)
+													} else {
+														val root = rootBounds
+														val edge = with(density) { 32.dp.toPx() }
+														val pageDelta = when {
+															root != null && release.x <= root.left + edge -> -1
+															root != null && release.x >= root.right - edge -> 1
+															else -> 0
+														}
+														val destinationPage = (targetPage + pageDelta).coerceIn(0, pageCount - 1)
+														val centerX = item.cellX * cellWidthPx + dragOffset.x + cellWidthPx * item.spanX / 2f
+														val centerY = item.cellY * cellHeightPx + dragOffset.y + cellHeightPx * item.spanY / 2f
+														val rawX = floor(centerX / cellWidthPx - item.spanX / 2f).toInt().coerceIn(0, grid.columns - item.spanX)
+														val rawY = floor(centerY / cellHeightPx - item.spanY / 2f).toInt().coerceIn(0, grid.rows - item.spanY)
+														val moved = if (pageDelta == 0) {
+															homeController.moveItem(item.id, destinationPage, rawX, rawY)
+														} else {
+															val available = HomePlacementEngine.findFirstAvailable(homeController.itemsOnPage(destinationPage), destinationPage, item.spanX, item.spanY, grid)
+															available != null && homeController.moveItem(item.id, destinationPage, available.first, available.second)
+														}
+														if (moved && destinationPage != targetPage) onPageSelected(destinationPage)
+													}
+													dragOffset = Offset.Zero
+													draggedItemId = null
+												},
+												 onDragCancel = { dragOffset = Offset.Zero; draggedItemId = null }
 											)
+											}
 									) {
-										WidgetRenderer(
-											widgetHost = widgetHost,
-											widgetId = widgetId,
-											modifier = Modifier.fillMaxSize()
-										)
+										WidgetRenderer(widgetHost, widgetId, Modifier.fillMaxSize())
+										if (editMode) {
+											Row(
+												modifier = Modifier.align(Alignment.TopEnd).padding(4.dp).background(Color.Black.copy(alpha = 0.88f), RoundedCornerShape(12.dp)).padding(2.dp),
+												verticalAlignment = Alignment.CenterVertically
+											) {
+												Text("W", color = Color.White, fontSize = 10.sp, modifier = Modifier.padding(horizontal = 5.dp))
+												Text("↔", color = Color.White, modifier = Modifier.clickable { WidgetResizeHandler.resized(item, 1, 0, grid)?.let { homeController.resizeWidget(item.id, it.first, it.second) } }.padding(horizontal = 7.dp, vertical = 5.dp))
+												Text("↕", color = Color.White, modifier = Modifier.clickable { WidgetResizeHandler.resized(item, 0, 1, grid)?.let { homeController.resizeWidget(item.id, it.first, it.second) } }.padding(horizontal = 7.dp, vertical = 5.dp))
+												Text("−", color = Color.White, modifier = Modifier.clickable { WidgetResizeHandler.resized(item, -1, 0, grid)?.let { homeController.resizeWidget(item.id, it.first, it.second) } }.padding(horizontal = 7.dp, vertical = 5.dp))
+												Text("×", color = Color.White, modifier = Modifier.clickable { widgetHost.deleteWidget(widgetId); homeController.removeItem(item.id) }.padding(horizontal = 7.dp, vertical = 5.dp))
+											}
+										}
 									}
-
 									return@forEach
 								}
-
 
 								if (item.type != HomeItemType.APP_SHORTCUT) return@forEach
 
@@ -449,17 +501,13 @@ import kotlin.math.floor
 						animationSpec = tween(300)
 					)
 		) {
-			TextButton(
-				onClick = { widgetPickerOpen = true }
-			) {
-				Text("Add widget")
-			}
 			EditorBar(
 				onBackgroundClick = onPickBackground,
 				onAddScreen = onAddHomeScreen,
 				onSettingsClick = { settingsOpen = true },
 				onDone = { editMode = false },
-				onAddAppClick = { appPickerOpen = true }
+				onAddAppClick = { appPickerOpen = true },
+				onAddWidgetClick = { widgetPickerOpen = true }
 			)
 		}
 

@@ -1,3 +1,5 @@
+package com.example.tgml_the_great_mobile_launcher.home.widgets
+
 import android.appwidget.AppWidgetManager
 import android.os.Bundle
 import androidx.compose.foundation.layout.Box
@@ -10,7 +12,6 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.viewinterop.AndroidView
-import com.example.tgml_the_great_mobile_launcher.home.widgets.WidgetHostController
 
 @Composable
 fun WidgetRenderer(
