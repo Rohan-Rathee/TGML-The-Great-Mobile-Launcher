@@ -35,6 +35,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -98,6 +99,7 @@ import kotlin.math.floor
 	var lastPointerRoot by remember { mutableStateOf(Offset.Zero) }
 	var openedFolderId by remember { mutableStateOf<String?>(null) }
 	var dragOffset by remember { mutableStateOf(Offset.Zero) }
+	val dropTargetBounds = remember { mutableStateMapOf<String, Rect>() }
 	var widgetPickerOpen by remember { mutableStateOf(false) }
 	val launcherScale by animateFloatAsState(
 		targetValue = if (editMode) 0.88f else 1f,
@@ -137,6 +139,7 @@ import kotlin.math.floor
 				style = transitionStyle,
 				modifier = Modifier.fillMaxSize()
 			) { targetPage ->
+
 				Box(Modifier.fillMaxSize()) {
 					LauncherBackground(backgroundUri = backgroundUri)
 
@@ -156,12 +159,70 @@ import kotlin.math.floor
 							.forEach { item ->
 
 								if (item.type == HomeItemType.FOLDER) {
+									val isDragging = draggedItemId == item.id
+									val folderCoordinates = remember(item.id) { mutableStateOf<LayoutCoordinates?>(null) }
 									Box(
 										modifier = Modifier
 											.offset(
-												x = cellWidth * item.cellX,
-												y = cellHeight * item.cellY
+												x = cellWidth * item.cellX + if (isDragging) with(density) { dragOffset.x.toDp() } else 0.dp,
+												y = cellHeight * item.cellY + if (isDragging) with(density) { dragOffset.y.toDp() } else 0.dp
 											)
+											.size(width = cellWidth, height = cellHeight)
+											.onGloballyPositioned {
+												folderCoordinates.value = it
+												dropTargetBounds[item.id] = it.boundsInRoot()
+											}
+											.pointerInput(item.id, targetPage, cellWidthPx, cellHeightPx) {
+												detectDragGesturesAfterLongPress(
+													onDragStart = { position ->
+														editMode = true
+														draggedItemId = item.id
+														folderCoordinates.value?.localToRoot(position)?.let { lastPointerRoot = it }
+														dragOffset = Offset.Zero
+													},
+													onDrag = { change, amount ->
+														change.consume()
+														dragOffset += amount
+														folderCoordinates.value?.localToRoot(change.position)?.let { lastPointerRoot = it }
+													},
+													onDragEnd = {
+														val release = lastPointerRoot
+														if (trashBounds?.contains(release) == true) {
+															homeController.removeItem(item.id)
+														} else {
+															val root = rootBounds
+															val edge = with(density) { 32.dp.toPx() }
+															val pageDelta = when {
+																root != null && release.x <= root.left + edge -> -1
+																root != null && release.x >= root.right - edge -> 1
+																else -> 0
+															}
+															val destinationPage = (targetPage + pageDelta).coerceIn(0, pageCount - 1)
+
+															val rawX = floor((item.cellX * cellWidthPx + dragOffset.x + cellWidthPx / 2f) / cellWidthPx).toInt().coerceIn(0, grid.columns - 1)
+															val rawY = floor((item.cellY * cellHeightPx + dragOffset.y + cellHeightPx / 2f) / cellHeightPx).toInt().coerceIn(0, grid.rows - 1)
+
+															val moved = if (destinationPage == targetPage) {
+																homeController.moveItem(item.id, destinationPage, rawX, rawY)
+															} else {
+																val available = HomePlacementEngine.findFirstAvailable(
+																	items = homeController.items.filter { it.parentFolderId == null },
+																	page = destinationPage,
+																	grid = grid
+																)
+																available != null && homeController.moveItem(item.id, destinationPage, available.first, available.second)
+															}
+															if (moved && destinationPage != targetPage) onPageSelected(destinationPage)
+														}
+														dragOffset = Offset.Zero
+														draggedItemId = null
+													},
+													onDragCancel = {
+														dragOffset = Offset.Zero
+														draggedItemId = null
+													}
+												)
+											}
 											.size(
 												width = cellWidth,
 												height = cellHeight
@@ -276,7 +337,6 @@ import kotlin.math.floor
 									it.packageName == item.packageName &&
 											it.activityName == item.activityName
 								} ?: return@forEach
-
 								val isDragging = draggedItemId == item.id
 								val itemCoordinates = remember(item.id) {
 									mutableStateOf<LayoutCoordinates?>(null)
@@ -294,108 +354,79 @@ import kotlin.math.floor
 											width = cellWidth,
 											height = cellHeight
 										)
-										.onGloballyPositioned { itemCoordinates.value = it }										.pointerInput(
-											item.id,
-											editMode,
-											targetPage,
-											cellWidthPx,
-											cellHeightPx
-
-										) {
-											detectDragGesturesAfterLongPress(
-												onDragStart = { position ->
-													editMode = true
-													draggedItemId = item.id
-													itemCoordinates.value?.localToRoot(position)?.let {
-														lastPointerRoot = it
-													}
-													dragOffset = Offset.Zero
-												},
-												onDrag = { change, amount ->
-													change.consume()
-													dragOffset += amount
-													itemCoordinates.value?.localToRoot(change.position)?.let {
-														lastPointerRoot = it
-													}
-												},
-												onDragEnd = {
-													val release = lastPointerRoot
-
-													if (trashBounds?.contains(release) == true) {
-														homeController.removeItem(item.id)
-													} else {
-														val root = rootBounds
-														val edgeThreshold = with(density) { 32.dp.toPx() }
-
-														val pageDelta = when {
-															root != null && release.x <= root.left + edgeThreshold -> -1
-															root != null && release.x >= root.right - edgeThreshold -> 1
-															else -> 0
-														}
-
-														val destinationPage =
-															(targetPage + pageDelta).coerceIn(0, pageCount - 1)
-
-														val rawY = floor(
-															(item.cellY * cellHeightPx + dragOffset.y +
-																	cellHeightPx / 2f) / cellHeightPx
-														).toInt().coerceIn(0, grid.rows - 1)
-
-														val moved = if (destinationPage != targetPage) {
-															val edgeCellX = if (pageDelta > 0) 0 else grid.columns - 1
-
-															val edgeMove = homeController.moveItem(
-																itemId = item.id,
-																page = destinationPage,
-																cellX = edgeCellX,
-																cellY = rawY
-															)
-
-															if (edgeMove) {
-																true
-															} else {
-																val fallback = HomePlacementEngine.findFirstAvailable(
-																	items = homeController.items.filter {
-																		it.parentFolderId == null
-																	},
-																	page = destinationPage,
-																	grid = grid
-																)
-
-																fallback != null && homeController.moveItem(
-																	itemId = item.id,
-																	page = destinationPage,
-																	cellX = fallback.first,
-																	cellY = fallback.second
-																)
-															}
-														} else {
-															val rawX = floor(
-																(item.cellX * cellWidthPx + dragOffset.x +
-																		cellWidthPx / 2f) / cellWidthPx
-															).toInt().coerceIn(0, grid.columns - 1)
-															homeController.moveItem(
-																itemId = item.id,
-																page = targetPage,
-																cellX = rawX,
-																cellY = rawY
-															)
-														}
-
-														if (moved && destinationPage != targetPage) {
-															onPageSelected(destinationPage)
-														}
-													}
-
-													dragOffset = Offset.Zero
-													draggedItemId = null
-												},
-												onDragCancel = {
-													dragOffset = Offset.Zero
-													draggedItemId = null
+										.onGloballyPositioned {
+									itemCoordinates.value = it
+									dropTargetBounds[item.id] = it.boundsInRoot()
+								}
+								.pointerInput(
+									item.id,
+									targetPage,
+									cellWidthPx,
+									cellHeightPx
+								) {
+									detectDragGesturesAfterLongPress(
+										onDragStart = { position ->
+											editMode = true
+											draggedItemId = item.id
+											itemCoordinates.value?.localToRoot(position)?.let { lastPointerRoot = it }
+											dragOffset = Offset.Zero
+										},
+										onDrag = { change, amount ->
+											change.consume()
+											dragOffset += amount
+											itemCoordinates.value?.localToRoot(change.position)?.let { lastPointerRoot = it }
+										},
+										onDragEnd = {
+											val release = lastPointerRoot
+											if (trashBounds?.contains(release) == true) {
+												homeController.removeItem(item.id)
+											} else {
+												val target = homeController.itemsOnPage(targetPage).firstOrNull { candidate ->
+													candidate.id != item.id &&
+													(candidate.type == HomeItemType.APP_SHORTCUT || candidate.type == HomeItemType.FOLDER) &&
+													dropTargetBounds[candidate.id]?.contains(release) == true
 												}
-											)									}
-										.clickable(enabled = !editMode) {
+												val folderDrop = target?.let { dropTarget ->
+													when (dropTarget.type) {
+														HomeItemType.FOLDER -> homeController.moveItemIntoFolder(item.id, dropTarget.id)
+														HomeItemType.APP_SHORTCUT -> homeController.createFolder(item.id, dropTarget.id) != null
+														else -> false
+													}
+												} ?: false
+												if (!folderDrop) {
+													val root = rootBounds
+													val edgeThreshold = with(density) { 32.dp.toPx() }
+													val pageDelta = when {
+														root != null && release.x <= root.left + edgeThreshold -> -1
+														root != null && release.x >= root.right - edgeThreshold -> 1
+														else -> 0
+													}
+													val destinationPage = (targetPage + pageDelta).coerceIn(0, pageCount - 1)
+													val rawY = floor((item.cellY * cellHeightPx + dragOffset.y + cellHeightPx / 2f) / cellHeightPx).toInt().coerceIn(0, grid.rows - 1)
+													val moved = if (destinationPage != targetPage) {
+														val edgeCellX = if (pageDelta > 0) 0 else grid.columns - 1
+														val edgeMove = homeController.moveItem(item.id, destinationPage, edgeCellX, rawY)
+														if (edgeMove) true else {
+															val fallback = HomePlacementEngine.findFirstAvailable(
+																items = homeController.items.filter { it.parentFolderId == null },
+																page = destinationPage,
+																grid = grid
+															)
+															fallback != null && homeController.moveItem(item.id, destinationPage, fallback.first, fallback.second)
+														}
+													} else {
+														val rawX = floor((item.cellX * cellWidthPx + dragOffset.x + cellWidthPx / 2f) / cellWidthPx).toInt().coerceIn(0, grid.columns - 1)
+														homeController.moveItem(item.id, targetPage, rawX, rawY) }
+													if (moved && destinationPage != targetPage) onPageSelected(destinationPage) } }
+										dragOffset = Offset.Zero
+										draggedItemId = null
+									},
+									onDragCancel = {
+										dragOffset = Offset.Zero
+										draggedItemId = null }
+								)
+							}
+							.clickable(enabled = !editMode) {
 											onAppClick(app)
 										},
 									contentAlignment = Alignment.Center
@@ -653,7 +684,6 @@ import kotlin.math.floor
 							items = apps,
 							key = { "${it.packageName}/${it.activityName}" }
 						) { app ->
-
 							Row(
 								modifier = Modifier
 									.fillMaxWidth()
