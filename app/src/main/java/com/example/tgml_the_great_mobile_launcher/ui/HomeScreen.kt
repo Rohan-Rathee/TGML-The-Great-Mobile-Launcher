@@ -1,8 +1,6 @@
 
 package com.example.tgml_the_great_mobile_launcher.ui
 
-import com.example.tgml_the_great_mobile_launcher.home.widgets.WidgetRenderer
-import com.example.tgml_the_great_mobile_launcher.home.widgets.WidgetResizeHandler
 import android.appwidget.AppWidgetProviderInfo
 import android.net.Uri
 import androidx.compose.animation.AnimatedVisibility
@@ -64,6 +62,8 @@ import com.example.tgml_the_great_mobile_launcher.home.HomePlacementEngine
 import com.example.tgml_the_great_mobile_launcher.home.folders.FolderIcon
 import com.example.tgml_the_great_mobile_launcher.home.widgets.WidgetHostController
 import com.example.tgml_the_great_mobile_launcher.home.widgets.WidgetPicker
+import com.example.tgml_the_great_mobile_launcher.home.widgets.WidgetRenderer
+import com.example.tgml_the_great_mobile_launcher.home.widgets.WidgetResizeHandler
 import com.example.tgml_the_great_mobile_launcher.toSafeImageBitmap
 import kotlin.math.floor
 
@@ -98,7 +98,6 @@ import kotlin.math.floor
 	var lastPointerRoot by remember { mutableStateOf(Offset.Zero) }
 	var openedFolderId by remember { mutableStateOf<String?>(null) }
 	var dragOffset by remember { mutableStateOf(Offset.Zero) }
-	var iconCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
 	var widgetPickerOpen by remember { mutableStateOf(false) }
 	val launcherScale by animateFloatAsState(
 		targetValue = if (editMode) 0.88f else 1f,
@@ -277,20 +276,25 @@ import kotlin.math.floor
 									it.packageName == item.packageName &&
 											it.activityName == item.activityName
 								} ?: return@forEach
+
+								val isDragging = draggedItemId == item.id
+								val itemCoordinates = remember(item.id) {
+									mutableStateOf<LayoutCoordinates?>(null)
+								}
+
 								Box(
 									modifier = Modifier
 										.offset(
 											x = cellWidth * item.cellX +
-													with(density) { dragOffset.x.toDp() },
+													if (isDragging) with(density) { dragOffset.x.toDp() } else 0.dp,
 											y = cellHeight * item.cellY +
-													with(density) { dragOffset.y.toDp() }
+													if (isDragging) with(density) { dragOffset.y.toDp() } else 0.dp
 										)
 										.size(
 											width = cellWidth,
 											height = cellHeight
 										)
-										.onGloballyPositioned { iconCoordinates = it }
-										.pointerInput(
+										.onGloballyPositioned { itemCoordinates.value = it }										.pointerInput(
 											item.id,
 											editMode,
 											targetPage,
@@ -302,7 +306,7 @@ import kotlin.math.floor
 												onDragStart = { position ->
 													editMode = true
 													draggedItemId = item.id
-													iconCoordinates?.localToRoot(position)?.let {
+													itemCoordinates.value?.localToRoot(position)?.let {
 														lastPointerRoot = it
 													}
 													dragOffset = Offset.Zero
@@ -310,7 +314,7 @@ import kotlin.math.floor
 												onDrag = { change, amount ->
 													change.consume()
 													dragOffset += amount
-													iconCoordinates?.localToRoot(change.position)?.let {
+													itemCoordinates.value?.localToRoot(change.position)?.let {
 														lastPointerRoot = it
 													}
 												},
@@ -649,6 +653,7 @@ import kotlin.math.floor
 							items = apps,
 							key = { "${it.packageName}/${it.activityName}" }
 						) { app ->
+
 							Row(
 								modifier = Modifier
 									.fillMaxWidth()

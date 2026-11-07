@@ -31,8 +31,7 @@ class HomeController(context: Context) {
 				it.type == HomeItemType.APP_SHORTCUT &&
 						it.packageName == packageName &&
 						it.activityName == activityName
-			}
-		) return false
+			}) return false
 
 		val position = HomePlacementEngine.findFirstAvailable(
 			items = items.filter { it.parentFolderId == null },
@@ -81,29 +80,34 @@ class HomeController(context: Context) {
 				spanY = spanY
 			)
 		)
+		save()
+		return true
+	}
+
+	fun resizeWidget(widgetItemId: String, spanX: Int, spanY: Int): Boolean {
+		if (spanX <= 0 || spanY <= 0) return false
+		val roots = items.filter { it.parentFolderId == null }
+		val resized = HomePlacementEngine.resizeItem(
+			items = roots,
+			itemId = widgetItemId,
+			spanX = spanX,
+			spanY = spanY,
+			grid = grid
+		) ?: return false
+
+		val updated = resized.associateBy { it.id }
+		for (index in items.indices) {
+			updated[items[index].id]?.let { items[index] = it }
+		}
 
 		save()
 		return true
 	}
 
-    fun resizeWidget(widgetItemId: String, spanX: Int, spanY: Int): Boolean {
-        if (spanX <= 0 || spanY <= 0) return false
-        val roots = items.filter { it.parentFolderId == null }
-        val resized = HomePlacementEngine.resizeItem(
-            items = roots,
-            itemId = widgetItemId,
-            spanX = spanX,
-            spanY = spanY,
-            grid = grid
-        ) ?: return false
-        val updated = resized.associateBy { it.id }
-        for (index in items.indices) updated[items[index].id]?.let { items[index] = it }
-        save()
-        return true
-    }
-
-    fun widgetIdForItem(itemId: String): Int? =
-        items.firstOrNull { it.id == itemId && it.type == HomeItemType.WIDGET }?.widgetId
+	fun widgetIdForItem(itemId: String): Int? =
+		items.firstOrNull {
+			it.id == itemId && it.type == HomeItemType.WIDGET
+		}?.widgetId
 
 	fun moveItem(
 		itemId: String,
@@ -116,7 +120,6 @@ class HomeController(context: Context) {
 		if (item.parentFolderId != null) return false
 
 		val rootItems = items.filter { it.parentFolderId == null }
-
 		val updatedRoots = HomePlacementEngine.moveItem(
 			items = rootItems,
 			itemId = itemId,
@@ -127,11 +130,8 @@ class HomeController(context: Context) {
 		) ?: return false
 
 		val updatedById = updatedRoots.associateBy { it.id }
-
 		for (index in items.indices) {
-			updatedById[items[index].id]?.let { updated ->
-				items[index] = updated
-			}
+			updatedById[items[index].id]?.let { items[index] = it }
 		}
 
 		save()
@@ -181,6 +181,7 @@ class HomeController(context: Context) {
 		items.add(folder)
 		items.add(first.copy(parentFolderId = folder.id, cellX = 0, cellY = 0))
 		items.add(second.copy(parentFolderId = folder.id, cellX = 0, cellY = 0))
+
 		save()
 		return folder.id
 	}
@@ -221,10 +222,7 @@ class HomeController(context: Context) {
 		return true
 	}
 
-	fun moveItemOutOfFolder(
-		itemId: String,
-		page: Int
-	): Boolean {
+	fun moveItemOutOfFolder(itemId: String, page: Int): Boolean {
 		val item = items.find { it.id == itemId } ?: return false
 		val folderId = item.parentFolderId ?: return false
 
@@ -261,6 +259,7 @@ class HomeController(context: Context) {
 			1 -> {
 				val child = children.first()
 				val index = items.indexOfFirst { it.id == child.id }
+
 				if (index >= 0) {
 					items[index] = child.copy(
 						parentFolderId = null,
