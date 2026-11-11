@@ -248,6 +248,33 @@ class HomeController(context: Context) {
 		return true
 	}
 
+	fun reorderFolderItem(itemId: String, targetItemId: String): Boolean {
+		val item = items.find { it.id == itemId } ?: return false
+		val target = items.find { it.id == targetItemId } ?: return false
+
+		if (item.parentFolderId == null ||
+			item.parentFolderId != target.parentFolderId ||
+			item.id == target.id
+		) return false
+
+		val folderId = item.parentFolderId
+		val children = items.filter { it.parentFolderId == folderId }.toMutableList()
+
+		val fromIndex = children.indexOfFirst { it.id == itemId }
+		val toIndex = children.indexOfFirst { it.id == targetItemId }
+		if (fromIndex == -1 || toIndex == -1) return false
+
+		val moved = children.removeAt(fromIndex)
+		children.add(toIndex, moved)
+
+		items.removeAll { it.parentFolderId == folderId }
+		val folderIndex = items.indexOfFirst { it.id == folderId }
+		items.addAll(folderIndex + 1, children)
+
+		save()
+		return true
+	}
+
 	private fun normalizeFolder(folderId: String) {
 		val folder = items.find {
 			it.id == folderId && it.type == HomeItemType.FOLDER

@@ -31,6 +31,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -70,7 +71,7 @@ import kotlin.math.floor
 
 
 @Composable
-	fun HomeScreen(
+fun HomeScreen(
 	apps: List<AppInfo>,
 	homeController: HomeController,
 	onAppClick: (AppInfo) -> Unit,
@@ -103,9 +104,17 @@ import kotlin.math.floor
 	var widgetPickerOpen by remember { mutableStateOf(false) }
 	val launcherScale by animateFloatAsState(
 		targetValue = if (editMode) 0.88f else 1f,
-			animationSpec = tween(300),
+		animationSpec = tween(300),
 		label = "homeLauncherScale"
 	)
+
+	var renameFolderId by remember { mutableStateOf<String?>(null) }
+	var renameFolderOpen by remember { mutableStateOf(false) }
+	var renameFolderName by remember { mutableStateOf("") }
+	var folderDragItemId by remember { mutableStateOf<String?>(null) }
+	var folderDragOffset by remember { mutableStateOf(Offset.Zero) }
+	var folderDragPointer by remember { mutableStateOf(Offset.Zero) }
+	var gridBounds by remember { mutableStateOf<Rect?>(null) }
 
 	Box(
 		modifier = Modifier
@@ -147,6 +156,9 @@ import kotlin.math.floor
 						modifier = Modifier
 							.fillMaxSize()
 							.padding(bottom = 96.dp)
+							.onGloballyPositioned {
+								gridBounds = it.boundsInRoot()
+							}
 					) {
 						val grid = homeController.grid
 
@@ -271,47 +283,47 @@ import kotlin.math.floor
 											.pointerInput(item.id, targetPage, cellWidthPx, cellHeightPx) {
 												detectDragGesturesAfterLongPress(
 													onDragStart = { position ->
-													editMode = true
-													draggedItemId = item.id
-													widgetCoordinates.value?.localToRoot(position)?.let { lastPointerRoot = it }
-													dragOffset = Offset.Zero
-												},
-												 onDrag = { change, amount ->
-													change.consume()
-													dragOffset += amount
-													widgetCoordinates.value?.localToRoot(change.position)?.let { lastPointerRoot = it }
-												},
-												 onDragEnd = {
-													val release = lastPointerRoot
-													if (trashBounds?.contains(release) == true) {
-														widgetHost.deleteWidget(widgetId)
-														homeController.removeItem(item.id)
-													} else {
-														val root = rootBounds
-														val edge = with(density) { 32.dp.toPx() }
-														val pageDelta = when {
-															root != null && release.x <= root.left + edge -> -1
-															root != null && release.x >= root.right - edge -> 1
-															else -> 0
-														}
-														val destinationPage = (targetPage + pageDelta).coerceIn(0, pageCount - 1)
-														val centerX = item.cellX * cellWidthPx + dragOffset.x + cellWidthPx * item.spanX / 2f
-														val centerY = item.cellY * cellHeightPx + dragOffset.y + cellHeightPx * item.spanY / 2f
-														val rawX = floor(centerX / cellWidthPx - item.spanX / 2f).toInt().coerceIn(0, grid.columns - item.spanX)
-														val rawY = floor(centerY / cellHeightPx - item.spanY / 2f).toInt().coerceIn(0, grid.rows - item.spanY)
-														val moved = if (pageDelta == 0) {
-															homeController.moveItem(item.id, destinationPage, rawX, rawY)
+														editMode = true
+														draggedItemId = item.id
+														widgetCoordinates.value?.localToRoot(position)?.let { lastPointerRoot = it }
+														dragOffset = Offset.Zero
+													},
+													onDrag = { change, amount ->
+														change.consume()
+														dragOffset += amount
+														widgetCoordinates.value?.localToRoot(change.position)?.let { lastPointerRoot = it }
+													},
+													onDragEnd = {
+														val release = lastPointerRoot
+														if (trashBounds?.contains(release) == true) {
+															widgetHost.deleteWidget(widgetId)
+															homeController.removeItem(item.id)
 														} else {
-															val available = HomePlacementEngine.findFirstAvailable(homeController.itemsOnPage(destinationPage), destinationPage, item.spanX, item.spanY, grid)
-															available != null && homeController.moveItem(item.id, destinationPage, available.first, available.second)
+															val root = rootBounds
+															val edge = with(density) { 32.dp.toPx() }
+															val pageDelta = when {
+																root != null && release.x <= root.left + edge -> -1
+																root != null && release.x >= root.right - edge -> 1
+																else -> 0
+															}
+															val destinationPage = (targetPage + pageDelta).coerceIn(0, pageCount - 1)
+															val centerX = item.cellX * cellWidthPx + dragOffset.x + cellWidthPx * item.spanX / 2f
+															val centerY = item.cellY * cellHeightPx + dragOffset.y + cellHeightPx * item.spanY / 2f
+															val rawX = floor(centerX / cellWidthPx - item.spanX / 2f).toInt().coerceIn(0, grid.columns - item.spanX)
+															val rawY = floor(centerY / cellHeightPx - item.spanY / 2f).toInt().coerceIn(0, grid.rows - item.spanY)
+															val moved = if (pageDelta == 0) {
+																homeController.moveItem(item.id, destinationPage, rawX, rawY)
+															} else {
+																val available = HomePlacementEngine.findFirstAvailable(homeController.itemsOnPage(destinationPage), destinationPage, item.spanX, item.spanY, grid)
+																available != null && homeController.moveItem(item.id, destinationPage, available.first, available.second)
+															}
+															if (moved && destinationPage != targetPage) onPageSelected(destinationPage)
 														}
-														if (moved && destinationPage != targetPage) onPageSelected(destinationPage)
-													}
-													dragOffset = Offset.Zero
-													draggedItemId = null
-												},
-												 onDragCancel = { dragOffset = Offset.Zero; draggedItemId = null }
-											)
+														dragOffset = Offset.Zero
+														draggedItemId = null
+													},
+													onDragCancel = { dragOffset = Offset.Zero; draggedItemId = null }
+												)
 											}
 									) {
 										WidgetRenderer(widgetHost, widgetId, Modifier.fillMaxSize())
@@ -355,78 +367,78 @@ import kotlin.math.floor
 											height = cellHeight
 										)
 										.onGloballyPositioned {
-									itemCoordinates.value = it
-									dropTargetBounds[item.id] = it.boundsInRoot()
-								}
-								.pointerInput(
-									item.id,
-									targetPage,
-									cellWidthPx,
-									cellHeightPx
-								) {
-									detectDragGesturesAfterLongPress(
-										onDragStart = { position ->
-											editMode = true
-											draggedItemId = item.id
-											itemCoordinates.value?.localToRoot(position)?.let { lastPointerRoot = it }
-											dragOffset = Offset.Zero
-										},
-										onDrag = { change, amount ->
-											change.consume()
-											dragOffset += amount
-											itemCoordinates.value?.localToRoot(change.position)?.let { lastPointerRoot = it }
-										},
-										onDragEnd = {
-											val release = lastPointerRoot
-											if (trashBounds?.contains(release) == true) {
-												homeController.removeItem(item.id)
-											} else {
-												val target = homeController.itemsOnPage(targetPage).firstOrNull { candidate ->
-													candidate.id != item.id &&
-													(candidate.type == HomeItemType.APP_SHORTCUT || candidate.type == HomeItemType.FOLDER) &&
-													dropTargetBounds[candidate.id]?.contains(release) == true
-												}
-												val folderDrop = target?.let { dropTarget ->
-													when (dropTarget.type) {
-														HomeItemType.FOLDER -> homeController.moveItemIntoFolder(item.id, dropTarget.id)
-														HomeItemType.APP_SHORTCUT -> homeController.createFolder(item.id, dropTarget.id) != null
-														else -> false
-													}
-												} ?: false
-												if (!folderDrop) {
-													val root = rootBounds
-													val edgeThreshold = with(density) { 32.dp.toPx() }
-													val pageDelta = when {
-														root != null && release.x <= root.left + edgeThreshold -> -1
-														root != null && release.x >= root.right - edgeThreshold -> 1
-														else -> 0
-													}
-													val destinationPage = (targetPage + pageDelta).coerceIn(0, pageCount - 1)
-													val rawY = floor((item.cellY * cellHeightPx + dragOffset.y + cellHeightPx / 2f) / cellHeightPx).toInt().coerceIn(0, grid.rows - 1)
-													val moved = if (destinationPage != targetPage) {
-														val edgeCellX = if (pageDelta > 0) 0 else grid.columns - 1
-														val edgeMove = homeController.moveItem(item.id, destinationPage, edgeCellX, rawY)
-														if (edgeMove) true else {
-															val fallback = HomePlacementEngine.findFirstAvailable(
-																items = homeController.items.filter { it.parentFolderId == null },
-																page = destinationPage,
-																grid = grid
-															)
-															fallback != null && homeController.moveItem(item.id, destinationPage, fallback.first, fallback.second)
-														}
+											itemCoordinates.value = it
+											dropTargetBounds[item.id] = it.boundsInRoot()
+										}
+										.pointerInput(
+											item.id,
+											targetPage,
+											cellWidthPx,
+											cellHeightPx
+										) {
+											detectDragGesturesAfterLongPress(
+												onDragStart = { position ->
+													editMode = true
+													draggedItemId = item.id
+													itemCoordinates.value?.localToRoot(position)?.let { lastPointerRoot = it }
+													dragOffset = Offset.Zero
+												},
+												onDrag = { change, amount ->
+													change.consume()
+													dragOffset += amount
+													itemCoordinates.value?.localToRoot(change.position)?.let { lastPointerRoot = it }
+												},
+												onDragEnd = {
+													val release = lastPointerRoot
+													if (trashBounds?.contains(release) == true) {
+														homeController.removeItem(item.id)
 													} else {
-														val rawX = floor((item.cellX * cellWidthPx + dragOffset.x + cellWidthPx / 2f) / cellWidthPx).toInt().coerceIn(0, grid.columns - 1)
-														homeController.moveItem(item.id, targetPage, rawX, rawY) }
-													if (moved && destinationPage != targetPage) onPageSelected(destinationPage) } }
-										dragOffset = Offset.Zero
-										draggedItemId = null
-									},
-									onDragCancel = {
-										dragOffset = Offset.Zero
-										draggedItemId = null }
-								)
-							}
-							.clickable(enabled = !editMode) {
+														val target = homeController.itemsOnPage(targetPage).firstOrNull { candidate ->
+															candidate.id != item.id &&
+																	(candidate.type == HomeItemType.APP_SHORTCUT || candidate.type == HomeItemType.FOLDER) &&
+																	dropTargetBounds[candidate.id]?.contains(release) == true
+														}
+														val folderDrop = target?.let { dropTarget ->
+															when (dropTarget.type) {
+																HomeItemType.FOLDER -> homeController.moveItemIntoFolder(item.id, dropTarget.id)
+																HomeItemType.APP_SHORTCUT -> homeController.createFolder(item.id, dropTarget.id) != null
+																else -> false
+															}
+														} ?: false
+														if (!folderDrop) {
+															val root = rootBounds
+															val edgeThreshold = with(density) { 32.dp.toPx() }
+															val pageDelta = when {
+																root != null && release.x <= root.left + edgeThreshold -> -1
+																root != null && release.x >= root.right - edgeThreshold -> 1
+																else -> 0
+															}
+															val destinationPage = (targetPage + pageDelta).coerceIn(0, pageCount - 1)
+															val rawY = floor((item.cellY * cellHeightPx + dragOffset.y + cellHeightPx / 2f) / cellHeightPx).toInt().coerceIn(0, grid.rows - 1)
+															val moved = if (destinationPage != targetPage) {
+																val edgeCellX = if (pageDelta > 0) 0 else grid.columns - 1
+																val edgeMove = homeController.moveItem(item.id, destinationPage, edgeCellX, rawY)
+																if (edgeMove) true else {
+																	val fallback = HomePlacementEngine.findFirstAvailable(
+																		items = homeController.items.filter { it.parentFolderId == null },
+																		page = destinationPage,
+																		grid = grid
+																	)
+																	fallback != null && homeController.moveItem(item.id, destinationPage, fallback.first, fallback.second)
+																}
+															} else {
+																val rawX = floor((item.cellX * cellWidthPx + dragOffset.x + cellWidthPx / 2f) / cellWidthPx).toInt().coerceIn(0, grid.columns - 1)
+																homeController.moveItem(item.id, targetPage, rawX, rawY) }
+															if (moved && destinationPage != targetPage) onPageSelected(destinationPage) } }
+													dragOffset = Offset.Zero
+													draggedItemId = null
+												},
+												onDragCancel = {
+													dragOffset = Offset.Zero
+													draggedItemId = null }
+											)
+										}
+										.clickable(enabled = !editMode) {
 											onAppClick(app)
 										},
 									contentAlignment = Alignment.Center
@@ -476,7 +488,7 @@ import kotlin.math.floor
 												fontSize = 17.sp
 											)
 										}
-									}								}
+									}                       }
 							}
 					}
 
@@ -594,23 +606,64 @@ import kotlin.math.floor
 		}
 		openedFolderId?.let { folderId ->
 			val folder = homeController.items.find {
-				it.id == folderId &&
-						it.type == HomeItemType.FOLDER
+				it.id == folderId && it.type == HomeItemType.FOLDER
 			}
 
 			if (folder == null) {
 				openedFolderId = null
 			} else {
 				val folderContents = homeController.itemsInFolder(folderId)
+				val isFolderDragging = folderDragItemId != null
 
-				AlertDialog(
-					onDismissRequest = {
-						openedFolderId = null
-					},
-					title = {
-						Text(folder.folderName ?: "Folder")
-					},
-					text = {
+				Box(
+					modifier = Modifier
+						.fillMaxSize()
+						.background(
+							if (isFolderDragging) Color.Transparent
+							else Color.Black.copy(alpha = 0.55f)
+						)
+						.clickable(enabled = !isFolderDragging) {
+							openedFolderId = null
+						},
+					contentAlignment = Alignment.Center
+				) {
+					Column(
+						modifier = Modifier
+							.fillMaxWidth(0.9f)
+							.background(
+								Color(0xFF292929).copy(
+									alpha = if (isFolderDragging) 0.25f else 1f
+								),
+								RoundedCornerShape(24.dp)
+							)
+							.padding(18.dp)
+							.clickable(enabled = false) {},
+					) {
+						Row(
+							verticalAlignment = Alignment.CenterVertically
+						) {
+							Text(
+								text = folder.folderName ?: "Folder",
+								color = Color.White,
+								fontSize = 20.sp,
+								modifier = Modifier.weight(1f)
+							)
+
+							TextButton(onClick = {
+								renameFolderId = folder.id
+								renameFolderName = folder.folderName ?: "Folder"
+								renameFolderOpen = true
+							}) {
+								Text("Rename")
+							}
+
+							TextButton(onClick = {
+								openedFolderId = null
+							}) {
+								Text("Close")
+							}
+						}
+
 						LazyColumn {
 							items(
 								items = folderContents,
@@ -619,47 +672,122 @@ import kotlin.math.floor
 								val app = apps.find {
 									it.packageName == item.packageName &&
 											it.activityName == item.activityName
+								} ?: return@items
+
+								val coordinates = remember(item.id) {
+									mutableStateOf<LayoutCoordinates?>(null)
 								}
 
-								if (app != null) {
-									Row(
+								Row(
+									modifier = Modifier
+										.fillMaxWidth()
+										.offset {
+											if (folderDragItemId == item.id) {
+												androidx.compose.ui.unit.IntOffset(
+													folderDragOffset.x.toInt(),
+													folderDragOffset.y.toInt()
+												)
+											} else {
+												androidx.compose.ui.unit.IntOffset.Zero
+											}
+										}
+										.onGloballyPositioned {
+											coordinates.value = it
+										}
+										.pointerInput(item.id, folderId) {
+											detectDragGesturesAfterLongPress(
+												onDragStart = { position ->
+													folderDragItemId = item.id
+													folderDragOffset = Offset.Zero
+													coordinates.value
+														?.localToRoot(position)
+														?.let { folderDragPointer = it }
+												},
+												onDrag = { change, amount ->
+													change.consume()
+													folderDragOffset += amount
+													folderDragPointer += amount
+												},
+												onDragEnd = {
+													val bounds = gridBounds
+
+													if (bounds != null &&
+														bounds.contains(folderDragPointer)
+													) {
+														val cellWidth =
+															bounds.width / homeController.grid.columns
+														val cellHeight =
+															bounds.height / homeController.grid.rows
+
+														val cellX = floor(
+															(folderDragPointer.x - bounds.left) / cellWidth
+														).toInt().coerceIn(
+															0,
+															homeController.grid.columns - 1
+														)
+
+														val cellY = floor(
+															(folderDragPointer.y - bounds.top) / cellHeight
+														).toInt().coerceIn(
+															0,
+															homeController.grid.rows - 1
+														)
+
+														val moved = homeController.moveItemOutOfFolder(
+															itemId = item.id,
+															page = folder.page
+														)
+
+														if (moved) {
+															openedFolderId = null
+														}
+													}
+
+													folderDragItemId = null
+													folderDragOffset = Offset.Zero
+												},
+												onDragCancel = {
+													folderDragItemId = null
+													folderDragOffset = Offset.Zero
+												}
+											)
+										}
+										.padding(vertical = 8.dp),
+									verticalAlignment = Alignment.CenterVertically
+								) {
+									Image(
+										bitmap = remember(
+											app.packageName,
+											app.activityName
+										) {
+											app.icon.toSafeImageBitmap(72, 72)
+										},
+										contentDescription = app.name,
+										modifier = Modifier.size(38.dp)
+									)
+
+									Text(
+										text = app.name,
+										color = Color.White,
 										modifier = Modifier
-											.fillMaxWidth()
+											.weight(1f)
 											.clickable {
 												openedFolderId = null
 												onAppClick(app)
 											}
-											.padding(vertical = 10.dp),
-										verticalAlignment = Alignment.CenterVertically
-									) {
-										Image(
-											bitmap = remember(
-												app.packageName,
-												app.activityName
-											) {
-												app.icon.toSafeImageBitmap(72, 72)
-											},
-											contentDescription = app.name,
-											modifier = Modifier.size(36.dp)
-										)
+											.padding(start = 12.dp)
+									)
 
-										Text(
-											text = app.name,
-											modifier = Modifier.padding(start = 12.dp)
-										)
+									TextButton(onClick = {
+										homeController.removeItem(item.id)
+									}) {
+										Text("×")
 									}
 								}
 							}
 						}
-					},
-					confirmButton = {
-						TextButton(onClick = {
-							openedFolderId = null
-						}) {
-							Text("Close")
-						}
 					}
-				)
+				}
 			}
 		}
 		if (widgetPickerOpen) {
@@ -720,6 +848,39 @@ import kotlin.math.floor
 					}
 				}
 			)
+
+		}
+		if (renameFolderOpen) {
+			AlertDialog(
+				onDismissRequest = { renameFolderOpen = false },
+				title = { Text("Rename folder") },
+				text = {
+					OutlinedTextField(
+						value = renameFolderName,
+						onValueChange = { renameFolderName = it },
+						singleLine = true
+					)
+				},
+				confirmButton = {
+					TextButton(onClick = {
+						val idToRename = renameFolderId ?: openedFolderId
+						if (idToRename != null) {
+							homeController.renameFolder(idToRename, renameFolderName)
+						}
+						renameFolderOpen = false
+					}) {
+						Text("Save")
+					}
+				},
+				dismissButton = {
+					TextButton(onClick = {
+						renameFolderOpen = false
+					}) {
+						Text("Cancel")
+					}
+				}
+			)
 		}
 	}
 }
+
