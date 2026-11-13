@@ -1,8 +1,11 @@
 package com.example.tgml_the_great_mobile_launcher
 
 import android.content.Intent
+import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
 import android.net.Uri
 import android.os.Bundle
+import android.view.WindowManager.LayoutParams
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -15,28 +18,36 @@ import com.example.tgml_the_great_mobile_launcher.ui.LauncherNavigation
 import com.example.tgml_the_great_mobile_launcher.ui.PageTransitionStyle
 import com.example.tgml_the_great_mobile_launcher.ui.theme.TGMLTheGreatMobileLauncherTheme
 
+
 class MainActivity : ComponentActivity()
 {
-	private val selectedBackgroundUri = mutableStateOf<Uri?>(null)
 	private val selectedLayout = mutableStateOf(LauncherLayout.RADIAL)
     private val selectedTransitionStyle = mutableStateOf(PageTransitionStyle.SLIDE)
+
+
+	private val selectedBackgroundUri = mutableStateOf<Uri?>(null)
+
 	private val backgroundPicker = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
 		if (uri != null) {
-			try{
+			try {
 				contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-			} catch (_: Exception) {
+			} catch (_: SecurityException) {}
 
-			}
-			getSharedPreferences("launcher", MODE_PRIVATE)
-				.edit {
-    				putString("background_uri", uri.toString())
-				}
 			selectedBackgroundUri.value = uri
+			getSharedPreferences("launcher", MODE_PRIVATE).edit {
+				putString("background_uri", uri.toString())
+			}
 		}
 	}
 
+
 	override fun onCreate(savedInstanceState: Bundle?) { super.onCreate(savedInstanceState)
 		enableEdgeToEdge()
+		window.addFlags(LayoutParams.FLAG_SHOW_WALLPAPER)
+		window.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+
+		selectedBackgroundUri.value = getSharedPreferences("launcher", MODE_PRIVATE)
+			.getString("background_uri", null)?.let { Uri.parse(it) }
 		val apps = getInstalledApps()
 		val savedBackground =
 			getSharedPreferences("launcher", MODE_PRIVATE)
@@ -80,6 +91,16 @@ class MainActivity : ComponentActivity()
 			onPickBackground = {
 				backgroundPicker.launch(arrayOf("image/*"))
 			},
+			onUseSystemWallpaper = {
+				selectedBackgroundUri.value = null
+				getSharedPreferences("launcher", MODE_PRIVATE).edit {
+					remove("background_uri")
+				}
+			},
+			onOpenSystemWallpaper = {
+				startActivity(Intent(Intent.ACTION_SET_WALLPAPER))
+			},
+
 			onLayoutChange = { newLayout ->
 				selectedLayout.value = newLayout
 

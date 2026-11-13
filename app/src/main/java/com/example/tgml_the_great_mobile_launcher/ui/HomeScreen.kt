@@ -89,7 +89,9 @@ fun HomeScreen(
 	onWidgetSelected: (AppWidgetProviderInfo) -> Unit,
 	widgetHost: WidgetHostController,
 	onWidgetConfigure: (Int) -> Unit,
-	onTransitionStyleChange: (PageTransitionStyle) -> Unit
+	onTransitionStyleChange: (PageTransitionStyle) -> Unit,
+	onUseSystemWallpaper: () -> Unit,
+	onOpenSystemWallpaper: () -> Unit,
 ) {
 	var editMode by remember { mutableStateOf(false) }
 	var settingsOpen by remember { mutableStateOf(false) }
@@ -597,11 +599,15 @@ fun HomeScreen(
 			exit = fadeOut(tween(200))
 		) {
 			LauncherSettings(
+				onUseSystemWallpaper = onUseSystemWallpaper,
+				onOpenSystemWallpaper = onOpenSystemWallpaper,
+				onPickBackground = onPickBackground,
 				currentLayout = layout,
 				onLayoutChange = onLayoutChange,
 				currentTransitionStyle = transitionStyle,
 				onTransitionStyleChange = onTransitionStyleChange,
 				onClose = { settingsOpen = false }
+
 			)
 		}
 		openedFolderId?.let { folderId ->

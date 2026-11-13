@@ -20,8 +20,7 @@ import androidx.compose.ui.unit.sp
 import com.example.tgml_the_great_mobile_launcher.LauncherLayout
 
 @Composable
-fun LauncherSettings(currentLayout: LauncherLayout, onLayoutChange: (LauncherLayout) -> Unit, currentTransitionStyle: PageTransitionStyle, onTransitionStyleChange: (PageTransitionStyle) -> Unit, onClose: () -> Unit)
-{
+fun LauncherSettings(currentLayout: LauncherLayout, onLayoutChange: (LauncherLayout) -> Unit, currentTransitionStyle: PageTransitionStyle, onTransitionStyleChange: (PageTransitionStyle) -> Unit, onPickBackground: () -> Unit, onUseSystemWallpaper: () -> Unit, onOpenSystemWallpaper: () -> Unit, onClose: () -> Unit){
 	Box(
 		modifier = Modifier
 			.fillMaxSize()
@@ -78,6 +77,16 @@ fun LauncherSettings(currentLayout: LauncherLayout, onLayoutChange: (LauncherLay
 					onLayoutChange(LauncherLayout.MULTI_PAGE)
 				}
 			)
+
+			Text(
+				text = "Wallpaper",
+				color = Color.White,
+				fontSize = 18.sp
+			)
+
+			LayoutOption("Choose App Wallpaper", false, true, onPickBackground)
+			LayoutOption("Use Phone Wallpaper", false, true, onUseSystemWallpaper)
+			LayoutOption("Change Phone Wallpaper", false, true, onOpenSystemWallpaper)
 
 			Text(
 				text = "Page Transition",

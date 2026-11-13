@@ -45,7 +45,9 @@ fun AppScreen(
     onLayoutChange: (LauncherLayout) -> Unit,
     onTransitionStyleChange: (PageTransitionStyle) -> Unit,
     onAppClick: (AppInfo) -> Unit,
-    onGesture: (GestureType) -> Unit
+    onGesture: (GestureType) -> Unit,
+    onUseSystemWallpaper: () -> Unit,
+    onOpenSystemWallpaper: () -> Unit,
 ) {
     var editMode by remember { mutableStateOf(false) }
     var settingsOpen by remember { mutableStateOf(false) }
@@ -130,13 +132,16 @@ fun AppScreen(
             enter = fadeIn(tween(200)),
             exit = fadeOut(tween(200))
         ) {
-            LauncherSettings(
-                currentLayout = layout,
-                onLayoutChange = onLayoutChange,
-                currentTransitionStyle = transitionStyle,
-                onTransitionStyleChange = onTransitionStyleChange,
-                onClose = { settingsOpen = false }
-            )
+	        LauncherSettings(
+		        onUseSystemWallpaper = onUseSystemWallpaper,
+		        onOpenSystemWallpaper = onOpenSystemWallpaper,
+		        currentLayout = layout,
+		        onLayoutChange = onLayoutChange,
+		        currentTransitionStyle = transitionStyle,
+		        onTransitionStyleChange = onTransitionStyleChange,
+		        onPickBackground = onPickBackground,
+		        onClose = { settingsOpen = false }
+	        )
         }
     }
 }

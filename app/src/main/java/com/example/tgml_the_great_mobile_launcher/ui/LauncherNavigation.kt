@@ -43,7 +43,9 @@ fun LauncherNavigation(
     onTransitionStyleChange: (PageTransitionStyle) -> Unit,
     onPickBackground: () -> Unit,
     onLayoutChange: (LauncherLayout) -> Unit,
-    onAppClick: (AppInfo) -> Unit
+    onAppClick: (AppInfo) -> Unit,
+    onUseSystemWallpaper: () -> Unit,
+    onOpenSystemWallpaper: () -> Unit,
 ) {
 
     var drawerOpen by rememberSaveable { mutableStateOf(false) }
@@ -280,7 +282,9 @@ fun LauncherNavigation(
             onLayoutChange = onLayoutChange,
             onTransitionStyleChange = onTransitionStyleChange,
             onAppClick = onAppClick,
-            onGesture = ::handleGesture
+            onGesture = ::handleGesture,
+	        onUseSystemWallpaper = onUseSystemWallpaper,
+	        onOpenSystemWallpaper = onOpenSystemWallpaper,
         )
     } else {
         HomeScreen(
@@ -306,6 +310,8 @@ fun LauncherNavigation(
 	        onWidgetSelected = ::startWidgetBinding,
 	        widgetHost = widgetHost,
 	        onWidgetConfigure = ::configureExistingWidget,
+	        onUseSystemWallpaper = onUseSystemWallpaper,
+	        onOpenSystemWallpaper = onOpenSystemWallpaper,
 		)
     }
 }
