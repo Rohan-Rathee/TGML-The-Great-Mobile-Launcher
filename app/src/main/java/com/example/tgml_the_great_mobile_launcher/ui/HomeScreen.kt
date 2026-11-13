@@ -104,6 +104,7 @@ fun HomeScreen(
 	var dragOffset by remember { mutableStateOf(Offset.Zero) }
 	val dropTargetBounds = remember { mutableStateMapOf<String, Rect>() }
 	var widgetPickerOpen by remember { mutableStateOf(false) }
+	var wallpaperOptionsOpen by remember { mutableStateOf(false) }
 	val launcherScale by animateFloatAsState(
 		targetValue = if (editMode) 0.88f else 1f,
 		animationSpec = tween(300),
@@ -118,6 +119,7 @@ fun HomeScreen(
 	var folderDragPointer by remember { mutableStateOf(Offset.Zero) }
 	var gridBounds by remember { mutableStateOf<Rect?>(null) }
 
+
 	Box(
 		modifier = Modifier
 			.fillMaxSize()
@@ -128,6 +130,7 @@ fun HomeScreen(
 				rootBounds = coordinates.boundsInRoot()
 			}
 	) {
+
 		if (editMode) {
 			LauncherBackground(backgroundUri = backgroundUri, blurred = true)
 		}
@@ -551,8 +554,7 @@ fun HomeScreen(
 					)
 		) {
 			EditorBar(
-				onBackgroundClick = onPickBackground,
-				onAddScreen = onAddHomeScreen,
+				onBackgroundClick = { wallpaperOptionsOpen = true },				onAddScreen = onAddHomeScreen,
 				onSettingsClick = { settingsOpen = true },
 				onDone = { editMode = false },
 				onAddAppClick = { appPickerOpen = true },
@@ -796,6 +798,15 @@ fun HomeScreen(
 				}
 			}
 		}
+		if (wallpaperOptionsOpen) {
+			WallpaperOptionsDialog(
+				onPickBackground = onPickBackground,
+				onUseSystemWallpaper = onUseSystemWallpaper,
+				onOpenSystemWallpaper = onOpenSystemWallpaper,
+				onClose = { wallpaperOptionsOpen = false }
+			)
+		}
+
 		if (widgetPickerOpen) {
 			WidgetPicker(
 				providers = widgetProviders,

@@ -50,7 +50,8 @@ fun AppScreen(
     onOpenSystemWallpaper: () -> Unit,
 ) {
     var editMode by remember { mutableStateOf(false) }
-    var settingsOpen by remember { mutableStateOf(false) }
+	var wallpaperOptionsOpen by remember { mutableStateOf(false) }
+	var settingsOpen by remember { mutableStateOf(false) }
     val launcherScale by animateFloatAsState(
         targetValue = if (editMode) 0.82f else 1f,
         animationSpec = tween(300),
@@ -63,6 +64,15 @@ fun AppScreen(
                 detectTapGestures(onLongPress = { editMode = true })
             }
     ) {
+			if (wallpaperOptionsOpen) {
+		    WallpaperOptionsDialog(
+			    onPickBackground = onPickBackground,
+			    onUseSystemWallpaper = onUseSystemWallpaper,
+			    onOpenSystemWallpaper = onOpenSystemWallpaper,
+			    onClose = { wallpaperOptionsOpen = false }
+		    )
+	    }
+
         if (editMode) LauncherBackground(backgroundUri = backgroundUri, blurred = true)
         Box(
             modifier = Modifier
@@ -121,8 +131,7 @@ fun AppScreen(
             exit = fadeOut(tween(200)) + slideOutVertically(targetOffsetY = { it }, animationSpec = tween(300))
         ) {
             EditorBar(
-                onBackgroundClick = onPickBackground,
-                onAddScreen = onAddHomeScreen,
+	            onBackgroundClick = { wallpaperOptionsOpen = true },                onAddScreen = onAddHomeScreen,
                 onSettingsClick = { settingsOpen = true },
                 onDone = { editMode = false }
             )

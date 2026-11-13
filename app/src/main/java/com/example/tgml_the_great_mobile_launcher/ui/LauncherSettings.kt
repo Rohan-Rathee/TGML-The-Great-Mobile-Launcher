@@ -12,6 +12,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -26,6 +30,7 @@ fun LauncherSettings(currentLayout: LauncherLayout, onLayoutChange: (LauncherLay
 			.fillMaxSize()
 			.background(Color.Black.copy(alpha = 0.65f))
 	) {
+		var wallpaperOptionsOpen by remember { mutableStateOf(false) }
 		Column(
 			modifier = Modifier
 				.align(Alignment.Center)
@@ -84,9 +89,18 @@ fun LauncherSettings(currentLayout: LauncherLayout, onLayoutChange: (LauncherLay
 				fontSize = 18.sp
 			)
 
-			LayoutOption("Choose App Wallpaper", false, true, onPickBackground)
-			LayoutOption("Use Phone Wallpaper", false, true, onUseSystemWallpaper)
-			LayoutOption("Change Phone Wallpaper", false, true, onOpenSystemWallpaper)
+			LayoutOption("Wallpaper Options", false, true) {
+				wallpaperOptionsOpen = true
+			}
+
+			if (wallpaperOptionsOpen) {
+				WallpaperOptionsDialog(
+					onPickBackground = onPickBackground,
+					onUseSystemWallpaper = onUseSystemWallpaper,
+					onOpenSystemWallpaper = onOpenSystemWallpaper,
+					onClose = { wallpaperOptionsOpen = false }
+				)
+			}
 
 			Text(
 				text = "Page Transition",
