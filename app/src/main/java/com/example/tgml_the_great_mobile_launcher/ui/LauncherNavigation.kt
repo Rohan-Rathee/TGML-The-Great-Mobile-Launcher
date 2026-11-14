@@ -21,6 +21,8 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.example.tgml_the_great_mobile_launcher.AppInfo
 import com.example.tgml_the_great_mobile_launcher.LauncherLayout
+import com.example.tgml_the_great_mobile_launcher.SideHandleFolder
+import com.example.tgml_the_great_mobile_launcher.SideHandleService
 import com.example.tgml_the_great_mobile_launcher.gestures.GestureAction
 import com.example.tgml_the_great_mobile_launcher.gestures.GestureContext
 import com.example.tgml_the_great_mobile_launcher.gestures.GestureHandler
@@ -33,19 +35,25 @@ private const val APP_DRAWER_PAGE_SIZE = 25
 
 @Composable
 fun LauncherNavigation(
-    apps: List<AppInfo>,
-    backgroundUri: Uri?,
-    layout: LauncherLayout,
-    gestureMappings: List<GestureMapping>,
-    initialHomePageCount: Int,
-    transitionStyle: PageTransitionStyle,
-    onHomePageCountChange: (Int) -> Unit,
-    onTransitionStyleChange: (PageTransitionStyle) -> Unit,
-    onPickBackground: () -> Unit,
-    onLayoutChange: (LauncherLayout) -> Unit,
-    onAppClick: (AppInfo) -> Unit,
-    onUseSystemWallpaper: () -> Unit,
-    onOpenSystemWallpaper: () -> Unit,
+	apps: List<AppInfo>,
+	backgroundUri: Uri?,
+	layout: LauncherLayout,
+	gestureMappings: List<GestureMapping>,
+	initialHomePageCount: Int,
+	transitionStyle: PageTransitionStyle,
+	onHomePageCountChange: (Int) -> Unit,
+	onTransitionStyleChange: (PageTransitionStyle) -> Unit,
+	onPickBackground: () -> Unit,
+	onLayoutChange: (LauncherLayout) -> Unit,
+	onAppClick: (AppInfo) -> Unit,
+	onUseSystemWallpaper: () -> Unit,
+	onOpenSystemWallpaper: () -> Unit,
+	sideHandleEnabled: Boolean,
+	sideHandleHomeIntegration: Boolean,
+	sideHandleFolders: List<SideHandleFolder>,
+	onSideHandleEnabledChange: (Boolean) -> Unit,
+	onSideHandleHomeIntegrationChange: (Boolean) -> Unit,
+	onSideHandleFoldersChange: (List<SideHandleFolder>) -> Unit,
 ) {
 
     var drawerOpen by rememberSaveable { mutableStateOf(false) }
@@ -174,6 +182,40 @@ fun LauncherNavigation(
     LaunchedEffect(drawerPageCount) {
         drawerPage = drawerPage.coerceIn(0, drawerPageCount - 1)
     }
+
+	LaunchedEffect(drawerOpen, sideHandleEnabled, sideHandleHomeIntegration) {
+		if (sideHandleEnabled) {
+			context.startService(
+				Intent(context, SideHandleService::class.java)
+					.setAction(SideHandleService.ACTION_HOME_MODE)
+					.putExtra(
+						SideHandleService.EXTRA_HOME_MODE,
+						!drawerOpen && sideHandleHomeIntegration
+					)
+			)
+		}
+	}
+	DisposableEffect(lifecycleOwner, drawerOpen, sideHandleEnabled, sideHandleHomeIntegration) {
+		val observer = LifecycleEventObserver { _, event ->
+			if (event == Lifecycle.Event.ON_RESUME && sideHandleEnabled) {
+				context.startService(
+					Intent(context, SideHandleService::class.java)
+						.setAction(SideHandleService.ACTION_HOME_MODE)
+						.putExtra(
+							SideHandleService.EXTRA_HOME_MODE,
+							!drawerOpen && sideHandleHomeIntegration
+						)
+				)
+			}
+		}
+
+		lifecycleOwner.lifecycle.addObserver(observer)
+
+		onDispose {
+			lifecycleOwner.lifecycle.removeObserver(observer)
+		}
+	}
+
     BackHandler(enabled = drawerOpen) {
         drawerOpen = false
         openingGesture = null
@@ -285,6 +327,12 @@ fun LauncherNavigation(
             onGesture = ::handleGesture,
 	        onUseSystemWallpaper = onUseSystemWallpaper,
 	        onOpenSystemWallpaper = onOpenSystemWallpaper,
+	        sideHandleEnabled = sideHandleEnabled,
+	        sideHandleHomeIntegration = sideHandleHomeIntegration,
+	        sideHandleFolders = sideHandleFolders,
+	        onSideHandleEnabledChange = onSideHandleEnabledChange,
+	        onSideHandleHomeIntegrationChange = onSideHandleHomeIntegrationChange,
+	        onSideHandleFoldersChange = onSideHandleFoldersChange,
         )
     } else {
         HomeScreen(
@@ -312,6 +360,12 @@ fun LauncherNavigation(
 	        onWidgetConfigure = ::configureExistingWidget,
 	        onUseSystemWallpaper = onUseSystemWallpaper,
 	        onOpenSystemWallpaper = onOpenSystemWallpaper,
+	        sideHandleEnabled = sideHandleEnabled,
+	        sideHandleHomeIntegration = sideHandleHomeIntegration,
+	        sideHandleFolders = sideHandleFolders,
+	        onSideHandleEnabledChange = onSideHandleEnabledChange,
+	        onSideHandleHomeIntegrationChange = onSideHandleHomeIntegrationChange,
+	        onSideHandleFoldersChange = onSideHandleFoldersChange,
 		)
     }
 }

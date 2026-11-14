@@ -25,6 +25,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import com.example.tgml_the_great_mobile_launcher.AppInfo
 import com.example.tgml_the_great_mobile_launcher.LauncherLayout
+import com.example.tgml_the_great_mobile_launcher.SideHandleFolder
 import com.example.tgml_the_great_mobile_launcher.gestures.GestureType
 import com.example.tgml_the_great_mobile_launcher.gestures.detectLauncherSwipes
 import com.example.tgml_the_great_mobile_launcher.layouts.LauncherLayoutView
@@ -33,21 +34,27 @@ private const val APP_DRAWER_PAGE_SIZE = 25
 
 @Composable
 fun AppScreen(
-    apps: List<AppInfo>,
-    backgroundUri: Uri?,
-    layout: LauncherLayout,
-    drawerPage: Int,
-    drawerPageCount: Int,
-    transitionStyle: PageTransitionStyle,
-    onDrawerPageSelected: (Int) -> Unit,
-    onAddHomeScreen: () -> Unit,
-    onPickBackground: () -> Unit,
-    onLayoutChange: (LauncherLayout) -> Unit,
-    onTransitionStyleChange: (PageTransitionStyle) -> Unit,
-    onAppClick: (AppInfo) -> Unit,
-    onGesture: (GestureType) -> Unit,
-    onUseSystemWallpaper: () -> Unit,
-    onOpenSystemWallpaper: () -> Unit,
+	apps: List<AppInfo>,
+	backgroundUri: Uri?,
+	layout: LauncherLayout,
+	drawerPage: Int,
+	drawerPageCount: Int,
+	transitionStyle: PageTransitionStyle,
+	onDrawerPageSelected: (Int) -> Unit,
+	onAddHomeScreen: () -> Unit,
+	onPickBackground: () -> Unit,
+	onLayoutChange: (LauncherLayout) -> Unit,
+	onTransitionStyleChange: (PageTransitionStyle) -> Unit,
+	onAppClick: (AppInfo) -> Unit,
+	onGesture: (GestureType) -> Unit,
+	onUseSystemWallpaper: () -> Unit,
+	onOpenSystemWallpaper: () -> Unit,
+	sideHandleEnabled: Boolean,
+	sideHandleHomeIntegration: Boolean,
+	sideHandleFolders: List<SideHandleFolder>,
+	onSideHandleEnabledChange: (Boolean) -> Unit,
+	onSideHandleHomeIntegrationChange: (Boolean) -> Unit,
+	onSideHandleFoldersChange: (List<SideHandleFolder>) -> Unit,
 ) {
     var editMode by remember { mutableStateOf(false) }
 	var wallpaperOptionsOpen by remember { mutableStateOf(false) }
@@ -149,7 +156,14 @@ fun AppScreen(
 		        currentTransitionStyle = transitionStyle,
 		        onTransitionStyleChange = onTransitionStyleChange,
 		        onPickBackground = onPickBackground,
-		        onClose = { settingsOpen = false }
+		        onClose = { settingsOpen = false },
+		        apps = apps,
+		        sideHandleEnabled = sideHandleEnabled,
+		        sideHandleHomeIntegration = sideHandleHomeIntegration,
+		        sideHandleFolders = sideHandleFolders,
+		        onSideHandleEnabledChange = onSideHandleEnabledChange,
+		        onSideHandleHomeIntegrationChange = onSideHandleHomeIntegrationChange,
+		        onSideHandleFoldersChange = onSideHandleFoldersChange,
 	        )
         }
     }

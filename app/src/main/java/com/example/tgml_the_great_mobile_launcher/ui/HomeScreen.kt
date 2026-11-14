@@ -3,6 +3,7 @@ package com.example.tgml_the_great_mobile_launcher.ui
 
 import android.appwidget.AppWidgetProviderInfo
 import android.net.Uri
+import android.os.Build
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -56,6 +57,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.tgml_the_great_mobile_launcher.AppInfo
 import com.example.tgml_the_great_mobile_launcher.LauncherLayout
+import com.example.tgml_the_great_mobile_launcher.SideHandleFolder
 import com.example.tgml_the_great_mobile_launcher.gestures.GestureType
 import com.example.tgml_the_great_mobile_launcher.gestures.detectLauncherSwipes
 import com.example.tgml_the_great_mobile_launcher.home.HomeController
@@ -92,6 +94,12 @@ fun HomeScreen(
 	onTransitionStyleChange: (PageTransitionStyle) -> Unit,
 	onUseSystemWallpaper: () -> Unit,
 	onOpenSystemWallpaper: () -> Unit,
+	sideHandleEnabled: Boolean,
+	sideHandleHomeIntegration: Boolean,
+	sideHandleFolders: List<SideHandleFolder>,
+	onSideHandleEnabledChange: (Boolean) -> Unit,
+	onSideHandleHomeIntegrationChange: (Boolean) -> Unit,
+	onSideHandleFoldersChange: (List<SideHandleFolder>) -> Unit,
 ) {
 	var editMode by remember { mutableStateOf(false) }
 	var settingsOpen by remember { mutableStateOf(false) }
@@ -608,8 +616,14 @@ fun HomeScreen(
 				onLayoutChange = onLayoutChange,
 				currentTransitionStyle = transitionStyle,
 				onTransitionStyleChange = onTransitionStyleChange,
-				onClose = { settingsOpen = false }
-
+				onClose = { settingsOpen = false },
+				apps = apps,
+				sideHandleEnabled = sideHandleEnabled,
+				sideHandleHomeIntegration = sideHandleHomeIntegration,
+				sideHandleFolders = sideHandleFolders,
+				onSideHandleEnabledChange = onSideHandleEnabledChange,
+				onSideHandleHomeIntegrationChange = onSideHandleHomeIntegrationChange,
+				onSideHandleFoldersChange = onSideHandleFoldersChange,
 			)
 		}
 		openedFolderId?.let { folderId ->
@@ -808,16 +822,18 @@ fun HomeScreen(
 		}
 
 		if (widgetPickerOpen) {
-			WidgetPicker(
-				providers = widgetProviders,
-				onWidgetSelected = { provider ->
-					widgetPickerOpen = false
-					onWidgetSelected(provider)
-				},
-				onDismiss = {
-					widgetPickerOpen = false
-				}
-			)
+			if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+				WidgetPicker(
+					providers = widgetProviders,
+					onWidgetSelected = { provider ->
+						widgetPickerOpen = false
+						onWidgetSelected(provider)
+					},
+					onDismiss = {
+						widgetPickerOpen = false
+					}
+				)
+			}
 		}
 		if (appPickerOpen) {
 			AlertDialog(

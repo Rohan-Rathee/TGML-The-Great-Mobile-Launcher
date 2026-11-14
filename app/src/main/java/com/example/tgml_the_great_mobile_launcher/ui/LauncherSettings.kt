@@ -9,7 +9,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -21,10 +23,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.tgml_the_great_mobile_launcher.AppInfo
 import com.example.tgml_the_great_mobile_launcher.LauncherLayout
+import com.example.tgml_the_great_mobile_launcher.SideHandleFolder
 
 @Composable
-fun LauncherSettings(currentLayout: LauncherLayout, onLayoutChange: (LauncherLayout) -> Unit, currentTransitionStyle: PageTransitionStyle, onTransitionStyleChange: (PageTransitionStyle) -> Unit, onPickBackground: () -> Unit, onUseSystemWallpaper: () -> Unit, onOpenSystemWallpaper: () -> Unit, onClose: () -> Unit){
+fun LauncherSettings(currentLayout: LauncherLayout, onLayoutChange: (LauncherLayout) -> Unit, currentTransitionStyle: PageTransitionStyle, onTransitionStyleChange: (PageTransitionStyle) -> Unit, onPickBackground: () -> Unit, onUseSystemWallpaper: () -> Unit, onOpenSystemWallpaper: () -> Unit, onClose: () -> Unit, apps: List<AppInfo>, sideHandleEnabled: Boolean, sideHandleHomeIntegration: Boolean, sideHandleFolders: List<SideHandleFolder>, onSideHandleEnabledChange: (Boolean) -> Unit, onSideHandleHomeIntegrationChange: (Boolean) -> Unit, onSideHandleFoldersChange: (List<SideHandleFolder>) -> Unit) {
 	Box(
 		modifier = Modifier
 			.fillMaxSize()
@@ -38,7 +42,8 @@ fun LauncherSettings(currentLayout: LauncherLayout, onLayoutChange: (LauncherLay
 					Color.Black.copy(alpha = 0.9f),
 					RoundedCornerShape(24.dp)
 				)
-				.padding(24.dp),
+				.padding(24.dp)
+				.verticalScroll(rememberScrollState()),
 			verticalArrangement = Arrangement.spacedBy(12.dp)
 		) {
 			Text(
@@ -117,6 +122,22 @@ fun LauncherSettings(currentLayout: LauncherLayout, onLayoutChange: (LauncherLay
 			LayoutOption("Slide + Fade", currentTransitionStyle == PageTransitionStyle.SLIDE_FADE, true) {
 				onTransitionStyleChange(PageTransitionStyle.SLIDE_FADE)
 			}
+
+			Text(
+				text = "Side Handle",
+				color = Color.White,
+				fontSize = 18.sp
+			)
+
+			SideHandleSettings(
+				apps = apps,
+				enabled = sideHandleEnabled,
+				homeIntegration = sideHandleHomeIntegration,
+				folders = sideHandleFolders,
+				onEnabledChange = onSideHandleEnabledChange,
+				onHomeIntegrationChange = onSideHandleHomeIntegrationChange,
+				onFoldersChange = onSideHandleFoldersChange
+			)
 
 			Text(
 				text = "Close",
