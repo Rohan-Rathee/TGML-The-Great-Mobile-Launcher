@@ -1,3 +1,4 @@
+
 package com.example.tgml_the_great_mobile_launcher
 
 import android.animation.ValueAnimator
@@ -9,9 +10,11 @@ import android.app.Service
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.graphics.Canvas
+import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.PixelFormat
 import android.graphics.RectF
+import android.graphics.SweepGradient
 import android.graphics.drawable.Drawable
 import android.os.Build
 import android.os.IBinder
@@ -57,9 +60,12 @@ class SideHandleService : Service() {
 	private var transitionAnimator: ValueAnimator? = null
 	private val handleWidth by lazy { dp(44) }
 	private val expandedWidth by lazy { dp(340) }
-	private val folderRadius by lazy { dp(126).toFloat() }
-	private val appRadius by lazy { dp(292).toFloat() }
+	private val folderRadius by lazy { dp(120).toFloat() }
+	private val appRadius by lazy { dp(240).toFloat() }
 	private val appCache = mutableMapOf<String, List<AppInfo>>()
+	private var pointerX = 0f
+	private var pointerY = 0f
+	private var pointerActive = false
 
 	override fun onCreate() {
 		super.onCreate()
@@ -90,7 +96,7 @@ class SideHandleService : Service() {
 			WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
 			PixelFormat.TRANSLUCENT
 		).apply {
-			gravity = Gravity.LEFT or Gravity.TOP
+			gravity = sideGravity()
 		}
 
 		try {
@@ -124,6 +130,7 @@ class SideHandleService : Service() {
 	private fun updateWindow() {
 		if (!::handleTouchView.isInitialized) return
 		handleParams.width = if (expanded) expandedWidth else handleWidth
+		handleParams.gravity = sideGravity()
 		try {
 			windowManager.updateViewLayout(handleTouchView, handleParams)
 		} catch (_: Exception) { }
@@ -135,6 +142,8 @@ class SideHandleService : Service() {
 		expanded = false
 		activeFolder = -1
 		previousFolder = -1
+		pointerActive = false
+		transitionProgress = 1f
 		updateWindow()
 	}
 
@@ -197,11 +206,18 @@ class SideHandleService : Service() {
 							homePointerY = event.rawY
 							onMove?.invoke(homePointerX, homePointerY)
 							onClick()
+							pointerActive = false
+							visualView.invalidate()
 						}
 						down = false
 						return true
 					}
-					MotionEvent.ACTION_CANCEL -> { down = false; return true }
+					MotionEvent.ACTION_CANCEL -> {
+						down = false
+						pointerActive = false
+						visualView.invalidate()
+						return true
+					}
 				}
 				return true
 			}
@@ -213,9 +229,13 @@ class SideHandleService : Service() {
 			WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
 			PixelFormat.TRANSLUCENT
 		).apply {
-			gravity = Gravity.LEFT or Gravity.TOP
-			x = (centerX - size / 2f).toInt().coerceAtLeast(0)
-			y = (centerY - size / 2f).toInt().coerceAtLeast(0)
+			gravity = sideGravity()
+			x = if (isRightSide()) {
+				(resources.displayMetrics.widthPixels - centerX - size / 2f).toInt()
+			} else {
+				(centerX - size / 2f).toInt()
+			}
+			y = (centerY - size / 2f).toInt()
 		}
 		try {
 			windowManager.addView(target, targetParams)
@@ -232,7 +252,7 @@ class SideHandleService : Service() {
 			val point = radialPoint(folderRadius, index, folders.size, centerY)
 			(x - point.first) * (x - point.first) + (y - point.second) * (y - point.second) <= dp(72).toFloat() * dp(72).toFloat()
 		}
-		if (hoveredFolder != null && hoveredFolder != activeFolder) transitionToFolder(hoveredFolder, false)
+		if (hoveredFolder != null && hoveredFolder != activeFolder) transitionToFolder(hoveredFolder)
 		visualView.invalidate()
 	}
 
@@ -290,9 +310,19 @@ class SideHandleService : Service() {
 		}
 	}
 
+	private fun isRightSide() = SideHandlePreferences.isRightSide(this)
+
+	private fun sideCenterX() = if (isRightSide()) resources.displayMetrics.widthPixels.toFloat() else 0f
+
+	private fun sideGravity() = (if (isRightSide()) Gravity.RIGHT else Gravity.LEFT) or Gravity.TOP
+
 	private fun radialPoint(radius: Float, index: Int, count: Int, centerY: Float): Pair<Float, Float> {
 		val angle = (if (count <= 1) 0.0 else -82.0 + 164.0 * index / (count - 1)) * PI / 180.0
-		return Pair(cos(angle).toFloat() * radius, centerY + sin(angle).toFloat() * radius)
+		val direction = if (SideHandlePreferences.isRightSide(this)) -1f else 1f
+		val offsetX = if (direction < 0f) resources.displayMetrics.widthPixels.toFloat() else 0f
+		val x = direction * cos(angle).toFloat() * radius + offsetX
+		val y = centerY + sin(angle).toFloat() * radius
+		return Pair(x, y)
 	}
 
 	private fun createNotificationChannel() {
@@ -340,66 +370,163 @@ class SideHandleService : Service() {
 
 		override fun onDraw(canvas: Canvas) {
 			super.onDraw(canvas)
-			val centerX = 0f
+			val rightSide = SideHandlePreferences.isRightSide(this@SideHandleService)
+			val centerX = if (rightSide) width.toFloat() else 0f
 			val centerY = height / 2f
-			paint.color = 0xDD20242C.toInt()
-			canvas.drawRoundRect(RectF(0f, centerY - 42f * density, 30f * density, centerY + 42f * density), 18f * density, 18f * density, paint)
-			paint.color = android.graphics.Color.WHITE
-			canvas.drawCircle(15f * density, centerY, 3.5f * density, paint)
 
-			if (!expanded && !homeExpanded) return
-			val folderRadius = 126f * density
-			val appRadius = 292f * density
-			paint.style = Paint.Style.STROKE
-			paint.strokeWidth = 2f * density
-			paint.color = 0xAAFFFFFF.toInt()
-			canvas.drawCircle(centerX, centerY, folderRadius, paint)
-			if (activeFolder in SideHandlePreferences.loadFolders(this@SideHandleService).indices) {
-				paint.color = (0x55 * transitionProgress).toInt() shl 24 or 0x00FFFFFF
-				canvas.drawCircle(centerX, centerY, appRadius, paint)
-			}
+			paint.shader = null
 			paint.style = Paint.Style.FILL
+			paint.color = 0xDD20242C.toInt()
+			val handleRect = if (isRightSide()) {
+				RectF(width - 30f * density, centerY - 42f * density, width.toFloat(), centerY + 42f * density)
+			} else {
+				RectF(0f, centerY - 42f * density, 30f * density, centerY + 42f * density)
+			}
+			if (rightSide) {
+				canvas.drawRoundRect(RectF(width - 30f * density, centerY - 42f * density, width.toFloat(), centerY + 42f * density), 18f * density, 18f * density, paint)
+				paint.color = android.graphics.Color.WHITE
+				canvas.drawCircle(width - 15f * density, centerY, 3.5f * density, paint)
+			} else {
+				canvas.drawRoundRect(RectF(0f, centerY - 42f * density, 30f * density, centerY + 42f * density), 18f * density, 18f * density, paint)
+				paint.color = android.graphics.Color.WHITE
+				canvas.drawCircle(15f * density, centerY, 3.5f * density, paint)
+			}
+			if (!expanded && !homeExpanded) return
 
-			val folders = SideHandlePreferences.loadFolders(this@SideHandleService)
-			folders.forEachIndexed { index, folder ->
-				val point = radialPoint(folderRadius, index, folders.size, centerY)
-				paint.color = if (index == activeFolder) 0xFF536DFE.toInt() else 0xEE252B36.toInt()
+			val currentFolders = SideHandlePreferences.loadFolders(this@SideHandleService)
+			val folderColors = currentFolders.map { it.color }.toIntArray()
+			drawGradientArcBand(canvas, centerX, centerY, folderRadius, folderColors)
+
+			val folderColor = if (activeFolder in currentFolders.indices) {
+				currentFolders[activeFolder].color
+			} else {
+				SideHandlePreferences.defaultArcColor(this@SideHandleService)
+			}
+			val previousColor = if (previousFolder in currentFolders.indices) {
+				currentFolders[previousFolder].color
+			} else {
+				folderColor
+			}
+			val outerColor = blendColors(previousColor, folderColor, transitionProgress)
+
+			currentFolders.forEachIndexed { index, folder ->
+				val point = radialPoint(folderRadius, index, currentFolders.size, centerY)
+				paint.shader = null
+				paint.style = Paint.Style.FILL
+				paint.color = if (index == activeFolder) 0xFF303846.toInt() else 0xEE252B36.toInt()
 				canvas.drawCircle(point.first, point.second, 28f * density, paint)
 				paint.color = android.graphics.Color.WHITE
 				paint.textSize = 10f * density
 				paint.textAlign = Paint.Align.CENTER
-				canvas.drawText(folder.name.take(9), point.first, point.second + 45f * density, paint)
 				paint.textSize = 22f * density
-				canvas.drawText(":D", point.first, point.second + 8f * density, paint)
+				paint.textAlign = Paint.Align.CENTER
+				canvas.drawText("▣", point.first, point.second + 8f * density, paint)
 			}
 
-			if (activeFolder in folders.indices) {
-				if (previousFolder in folders.indices && previousFolder != activeFolder && transitionProgress < 1f) {
-					drawApps(canvas, folders[previousFolder], centerX, centerY, 0.18f * (1f - transitionProgress), 0.92f)
-				}
-				drawApps(canvas, folders[activeFolder], centerX, centerY, transitionProgress, 0.82f + 0.18f * transitionProgress)
+			if (activeFolder in currentFolders.indices) {
+				val appScale = 0.82f + 0.18f * transitionProgress
+				drawArcBand(canvas, centerX, centerY, appRadius * appScale, outerColor, transitionProgress)
+				drawApps(canvas, currentFolders[activeFolder], centerX, centerY, transitionProgress, appScale)
 			}
+		}
+
+		private fun drawGradientArcBand(canvas: Canvas, cx: Float, cy: Float, radius: Float, colors: IntArray) {
+			if (colors.isEmpty()) return
+			val gradientColors = if (colors.size == 1) intArrayOf(colors[0], colors[0]) else colors
+			val endPosition = 164f / 360f
+			val positions = FloatArray(gradientColors.size) { index ->
+				if (gradientColors.size == 1) 0f else endPosition * index / (gradientColors.size - 1)
+			}
+			val shader = SweepGradient(cx, cy, gradientColors, positions)
+			val rightSide = SideHandlePreferences.isRightSide(this@SideHandleService)
+			val startAngle = if (rightSide) 98f else -82f
+
+			val matrix = Matrix().apply { setRotate(startAngle, cx, cy) }
+			shader.setLocalMatrix(matrix)
+
+			paint.style = Paint.Style.STROKE
+			paint.strokeCap = Paint.Cap.ROUND
+			paint.strokeWidth = 56f * density
+			paint.shader = shader
+			paint.alpha = 255
+			canvas.drawArc(RectF(cx - radius, cy - radius, cx + radius, cy + radius), startAngle, 164f, false, paint)
+			paint.shader = null
+			paint.style = Paint.Style.FILL
+		}
+
+		private fun drawArcBand(canvas: Canvas, cx: Float, cy: Float, radius: Float, color: Int, alpha: Float) {
+			val oldStyle = paint.style
+			val oldCap = paint.strokeCap
+			val oldShader = paint.shader
+			paint.shader = null
+			val oldWidth = paint.strokeWidth
+
+			paint.style = Paint.Style.STROKE
+			paint.strokeCap = Paint.Cap.ROUND
+			paint.strokeWidth = 56f * density
+			paint.color = color
+			paint.alpha = (255 * alpha).toInt().coerceIn(0, 255)
+			val startAngle = if (SideHandlePreferences.isRightSide(this@SideHandleService)) 98f else -82f
+
+			canvas.drawArc(
+				RectF(cx - radius, cy - radius, cx + radius, cy + radius),
+				startAngle,
+				164f,
+				false,
+				paint
+			)
+
+			paint.style = oldStyle
+			paint.shader = oldShader
+			paint.strokeCap = oldCap
+			paint.strokeWidth = oldWidth
+			paint.alpha = 255
+		}
+
+		private fun blendColors(from: Int, to: Int, fraction: Float): Int {
+			val progress = fraction.coerceIn(0f, 1f)
+			return android.graphics.Color.argb(
+				(android.graphics.Color.alpha(from) + (android.graphics.Color.alpha(to) - android.graphics.Color.alpha(from)) * progress).toInt(),
+				(android.graphics.Color.red(from) + (android.graphics.Color.red(to) - android.graphics.Color.red(from)) * progress).toInt(),
+				(android.graphics.Color.green(from) + (android.graphics.Color.green(to) - android.graphics.Color.green(from)) * progress).toInt(),
+				(android.graphics.Color.blue(from) + (android.graphics.Color.blue(to) - android.graphics.Color.blue(from)) * progress).toInt()
+			)
 		}
 
 		private fun drawApps(canvas: Canvas, folder: SideHandleFolder, cx: Float, cy: Float, alpha: Float, scale: Float) {
 			val apps = loadApps(folder)
 			apps.forEachIndexed { index, app ->
-				val point = radialPoint(292f * density * scale, index, apps.size, cy)
+				val point = radialPoint(appRadius * scale, index, apps.size, cy)
+
+				val dx = pointerX - point.first
+				val dy = pointerY - point.second
+				val distance = Math.hypot(dx.toDouble(), dy.toDouble()).toFloat()
+
+				val proximity = if (pointerActive) {
+					(1f - distance / (dp(150).toFloat())).coerceIn(0f, 1f)
+				} else {
+					0f
+				}
+
+				val easedProximity = proximity * proximity * (3f - 2f * proximity)
+				val zoom = 1f + 0.65f * easedProximity
+
 				paint.color = ((0xEE * alpha).toInt().coerceIn(0, 255) shl 24) or 0x00171B22
-				canvas.drawCircle(point.first, point.second, 26f * density * scale, paint)
+				canvas.drawCircle(point.first, point.second, 26f * density * scale * zoom, paint)
+
 				val oldAlpha = paint.alpha
 				paint.alpha = (255 * alpha).toInt().coerceIn(0, 255)
-				drawIcon(canvas, app.icon, point.first, point.second, alpha)
+				drawIcon(canvas, app.icon, point.first, point.second, alpha, scale * zoom)
 				paint.alpha = oldAlpha
+
 				paint.color = (android.graphics.Color.WHITE and 0x00FFFFFF) or ((255 * alpha).toInt().coerceIn(0, 255) shl 24)
 				paint.textSize = 10f * density
 				paint.textAlign = Paint.Align.CENTER
-				canvas.drawText(app.name.take(11), point.first, point.second + 39f * density * scale, paint)
 			}
 		}
 
-		private fun drawIcon(canvas: Canvas, icon: Drawable, x: Float, y: Float, alpha: Float) {
-			val bounds = (iconSize / 2f).toInt()
+		private fun drawIcon(canvas: Canvas, icon: Drawable, x: Float, y: Float, alpha: Float, scale: Float) {
+			val bounds = (iconSize / 2f * scale).toInt()
 			val oldAlpha = icon.alpha
 			icon.alpha = (255 * alpha).toInt().coerceIn(0, 255)
 			icon.setBounds((x - bounds).toInt(), (y - bounds).toInt(), (x + bounds).toInt(), (y + bounds).toInt())
@@ -415,6 +542,9 @@ class SideHandleService : Service() {
 		private var lastY = 0f
 		private val longPressRunnable = Runnable {
 			if (pointerDown && !homeExpanded) {
+				pointerX = lastX
+				pointerY = lastY
+				pointerActive = true
 				longPressTriggered = true
 				activeFolder = -1
 				previousFolder = -1
@@ -432,17 +562,17 @@ class SideHandleService : Service() {
 				MotionEvent.ACTION_DOWN -> {
 					pointerDown = true
 					longPressTriggered = false
-					lastX = event.x
-					lastY = event.y
+					lastX = event.rawX
+					lastY = event.rawY
 					if (!homeExpanded) postDelayed(longPressRunnable, 350L)
 					return true
 				}
 				MotionEvent.ACTION_MOVE -> {
 					if (!pointerDown) return false
-					lastX = event.x
-					lastY = event.y
+					lastX = event.rawX
+					lastY = event.rawY
 					if (expanded) {
-						updateHover(event.x, event.y)
+						updateHover(event.rawX, event.rawY)
 						visualView.invalidate()
 					}
 					return true
@@ -452,7 +582,7 @@ class SideHandleService : Service() {
 					pointerDown = false
 					removeCallbacks(longPressRunnable)
 					if (longPressTriggered) {
-						val app = getHoveredApp(event.x, event.y)
+						val app = getHoveredApp(event.rawX, event.rawY)
 						if (app != null) launchApp(app)
 					}
 					if (!homeExpanded) collapse()
@@ -461,7 +591,9 @@ class SideHandleService : Service() {
 				MotionEvent.ACTION_CANCEL -> {
 					pointerDown = false
 					removeCallbacks(longPressRunnable)
+					pointerActive = false
 					if (!homeExpanded) collapse()
+					visualView.invalidate()
 					return true
 				}
 			}
@@ -469,6 +601,10 @@ class SideHandleService : Service() {
 		}
 
 		private fun updateHover(x: Float, y: Float) {
+			pointerX = x
+			pointerY = y
+			pointerActive = true
+
 			val centerY = resources.displayMetrics.heightPixels / 2f
 			val folders = SideHandlePreferences.loadFolders(this@SideHandleService)
 			val hovered = folders.indices.firstOrNull { index ->
