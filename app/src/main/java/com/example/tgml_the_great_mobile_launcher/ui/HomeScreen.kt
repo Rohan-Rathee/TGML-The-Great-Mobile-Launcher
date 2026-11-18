@@ -517,12 +517,6 @@ fun HomeScreen(
 							onPageSelected = onPageSelected,
 							modifier = Modifier.padding(bottom = 8.dp)
 						)
-
-						Text(
-							text = "Swipe up to open apps",
-							color = Color.White,
-							fontSize = 14.sp
-						)
 					}
 				}
 			}

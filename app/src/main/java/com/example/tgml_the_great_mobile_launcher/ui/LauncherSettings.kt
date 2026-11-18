@@ -1,16 +1,18 @@
+
 package com.example.tgml_the_great_mobile_launcher.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -26,142 +28,145 @@ import androidx.compose.ui.unit.sp
 import com.example.tgml_the_great_mobile_launcher.AppInfo
 import com.example.tgml_the_great_mobile_launcher.LauncherLayout
 import com.example.tgml_the_great_mobile_launcher.SideHandleFolder
+import com.example.tgml_the_great_mobile_launcher.ui.settings.SettingsHome
+import com.example.tgml_the_great_mobile_launcher.ui.settings.SettingsLayout
+import com.example.tgml_the_great_mobile_launcher.ui.settings.SettingsPage
+import com.example.tgml_the_great_mobile_launcher.ui.settings.SettingsSideHandle
+import com.example.tgml_the_great_mobile_launcher.ui.settings.SettingsTransitions
+import com.example.tgml_the_great_mobile_launcher.ui.settings.SettingsWallpaper
 
 @Composable
-fun LauncherSettings(currentLayout: LauncherLayout, onLayoutChange: (LauncherLayout) -> Unit, currentTransitionStyle: PageTransitionStyle, onTransitionStyleChange: (PageTransitionStyle) -> Unit, onPickBackground: () -> Unit, onUseSystemWallpaper: () -> Unit, onOpenSystemWallpaper: () -> Unit, onClose: () -> Unit, apps: List<AppInfo>, sideHandleEnabled: Boolean, sideHandleHomeIntegration: Boolean, sideHandleFolders: List<SideHandleFolder>, onSideHandleEnabledChange: (Boolean) -> Unit, onSideHandleHomeIntegrationChange: (Boolean) -> Unit, onSideHandleFoldersChange: (List<SideHandleFolder>) -> Unit) {
+fun LauncherSettings(
+	currentLayout: LauncherLayout,
+	onLayoutChange: (LauncherLayout) -> Unit,
+	currentTransitionStyle: PageTransitionStyle,
+	onTransitionStyleChange: (PageTransitionStyle) -> Unit,
+	onPickBackground: () -> Unit,
+	onUseSystemWallpaper: () -> Unit,
+	onOpenSystemWallpaper: () -> Unit,
+	onClose: () -> Unit,
+	apps: List<AppInfo>,
+	sideHandleEnabled: Boolean,
+	sideHandleHomeIntegration: Boolean,
+	sideHandleFolders: List<SideHandleFolder>,
+	onSideHandleEnabledChange: (Boolean) -> Unit,
+	onSideHandleHomeIntegrationChange: (Boolean) -> Unit,
+	onSideHandleFoldersChange: (List<SideHandleFolder>) -> Unit
+) {
+	var currentPage by remember { mutableStateOf(SettingsPage.HOME) }
+
+	BackHandler {
+		if (currentPage != SettingsPage.HOME) {
+			currentPage = SettingsPage.HOME
+		} else {
+			onClose()
+		}
+	}
+
 	Box(
 		modifier = Modifier
 			.fillMaxSize()
-			.background(Color.Black.copy(alpha = 0.65f))
+			.background(Color(0xFF101010))
 	) {
-		var wallpaperOptionsOpen by remember { mutableStateOf(false) }
 		Column(
-			modifier = Modifier
-				.align(Alignment.Center)
-				.background(
-					Color.Black.copy(alpha = 0.9f),
-					RoundedCornerShape(24.dp)
-				)
-				.padding(24.dp)
-				.verticalScroll(rememberScrollState()),
-			verticalArrangement = Arrangement.spacedBy(12.dp)
+			modifier = Modifier.fillMaxSize()
 		) {
-			Text(
-				text = "Launcher Layout",
-				color = Color.White,
-				fontSize = 22.sp
-			)
-
-			LayoutOption(
-				name = "Radial",
-				selected = currentLayout == LauncherLayout.RADIAL,
-				enabled = true,
-				onClick = {
-					onLayoutChange(LauncherLayout.RADIAL)
-				}
-			)
-
-			LayoutOption(
-				name = "Grid Scroll",
-				selected = currentLayout == LauncherLayout.GRID_SCROLL,
-				enabled = true,
-				onClick = {
-					onLayoutChange(LauncherLayout.GRID_SCROLL)
-				}
-			)
-
-			LayoutOption(
-				name = "Grid Zoom",
-				selected = currentLayout == LauncherLayout.GRID_ZOOM,
-				enabled = true,
-				onClick = {
-					onLayoutChange(LauncherLayout.GRID_ZOOM)
-				}
-			)
-
-			LayoutOption(
-				name = "Multi-page",
-				selected = currentLayout == LauncherLayout.MULTI_PAGE,
-				enabled = true,
-				onClick = {
-					onLayoutChange(LauncherLayout.MULTI_PAGE)
-				}
-			)
-
-			Text(
-				text = "Wallpaper",
-				color = Color.White,
-				fontSize = 18.sp
-			)
-
-			LayoutOption("Wallpaper Options", false, true) {
-				wallpaperOptionsOpen = true
-			}
-
-			if (wallpaperOptionsOpen) {
-				WallpaperOptionsDialog(
-					onPickBackground = onPickBackground,
-					onUseSystemWallpaper = onUseSystemWallpaper,
-					onOpenSystemWallpaper = onOpenSystemWallpaper,
-					onClose = { wallpaperOptionsOpen = false }
-				)
-			}
-
-			Text(
-				text = "Page Transition",
-				color = Color.White,
-				fontSize = 18.sp
-			)
-
-			LayoutOption("Slide", currentTransitionStyle == PageTransitionStyle.SLIDE, true) {
-				onTransitionStyleChange(PageTransitionStyle.SLIDE)
-			}
-			LayoutOption("Fade", currentTransitionStyle == PageTransitionStyle.FADE, true) {
-				onTransitionStyleChange(PageTransitionStyle.FADE)
-			}
-			LayoutOption("Slide + Fade", currentTransitionStyle == PageTransitionStyle.SLIDE_FADE, true) {
-				onTransitionStyleChange(PageTransitionStyle.SLIDE_FADE)
-			}
-
-			Text(
-				text = "Side Handle",
-				color = Color.White,
-				fontSize = 18.sp
-			)
-
-			SideHandleSettings(
-				apps = apps,
-				enabled = sideHandleEnabled,
-				homeIntegration = sideHandleHomeIntegration,
-				folders = sideHandleFolders,
-				onEnabledChange = onSideHandleEnabledChange,
-				onHomeIntegrationChange = onSideHandleHomeIntegrationChange,
-				onFoldersChange = onSideHandleFoldersChange
-			)
-
-			Text(
-				text = "Close",
-				color = Color.White,
+			Row(
 				modifier = Modifier
-					.clickable {
-						onClose()
+					.fillMaxWidth()
+					.padding(horizontal = 24.dp, vertical = 20.dp),
+				verticalAlignment = Alignment.CenterVertically
+			) {
+				if (currentPage != SettingsPage.HOME) {
+					Column {
+						Spacer(modifier = Modifier.height(30.dp))
+						Text(
+							text = "<",
+							color = Color.White,
+							fontSize = 28.sp,
+							modifier = Modifier
+								.clickable {
+									currentPage = SettingsPage.HOME
+								}
+								.padding(end = 18.dp)
+						)
 					}
-					.padding(8.dp)
-			)
+				}
+
+
+				Column {
+					Spacer(modifier = Modifier.height(40.dp))
+					Text(
+						text = if (currentPage == SettingsPage.HOME) "Settings" else currentPage.title,
+						color = Color.White,
+						fontSize = 26.sp
+					)
+
+					if (currentPage != SettingsPage.HOME) {
+						Text(
+							text = currentPage.description,
+							color = Color.Gray,
+							fontSize = 12.sp
+						)
+					}
+				}
+			}
+
+			Column(
+				modifier = Modifier
+					.fillMaxSize()
+					.verticalScroll(rememberScrollState())
+					.padding(horizontal = 24.dp)
+					.padding(bottom = 32.dp)
+			) {
+				when (currentPage) {
+					SettingsPage.HOME -> SettingsHome(
+						onNavigate = { currentPage = it }
+					)
+
+					SettingsPage.LAYOUT -> SettingsLayout(
+						currentLayout = currentLayout,
+						onLayoutChange = onLayoutChange
+					)
+
+					SettingsPage.WALLPAPER -> SettingsWallpaper(
+						onPickBackground = onPickBackground,
+						onUseSystemWallpaper = onUseSystemWallpaper,
+						onOpenSystemWallpaper = onOpenSystemWallpaper
+					)
+
+					SettingsPage.TRANSITIONS -> SettingsTransitions(
+						currentTransitionStyle = currentTransitionStyle,
+						onTransitionStyleChange = onTransitionStyleChange
+					)
+
+					SettingsPage.SIDE_HANDLE -> SettingsSideHandle(
+						apps = apps,
+						enabled = sideHandleEnabled,
+						homeIntegration = sideHandleHomeIntegration,
+						folders = sideHandleFolders,
+						onEnabledChange = onSideHandleEnabledChange,
+						onHomeIntegrationChange = onSideHandleHomeIntegrationChange,
+						onFoldersChange = onSideHandleFoldersChange
+					)
+				}
+			}
 		}
 	}
 }
 
 @Composable
-fun LayoutOption(name: String, selected: Boolean, enabled: Boolean, onClick: () -> Unit)
-{
-	Row(
+fun LayoutOption(
+	name: String,
+	selected: Boolean,
+	enabled: Boolean,
+	onClick: () -> Unit
+) {
+	androidx.compose.foundation.layout.Row(
 		verticalAlignment = Alignment.CenterVertically,
 		modifier = Modifier
 			.fillMaxWidth()
-			.clickable(enabled = enabled) {
-				onClick()
-			}
+			.clickable(enabled = enabled, onClick = onClick)
 			.padding(vertical = 10.dp)
 	) {
 		Text(
@@ -172,11 +177,7 @@ fun LayoutOption(name: String, selected: Boolean, enabled: Boolean, onClick: () 
 
 		Text(
 			text = name,
-			color = if (enabled) {
-				Color.White
-			} else {
-				Color.White.copy(alpha = 0.35f)
-			},
+			color = if (enabled) Color.White else Color.White.copy(alpha = 0.35f),
 			fontSize = 16.sp,
 			modifier = Modifier.padding(start = 12.dp)
 		)
