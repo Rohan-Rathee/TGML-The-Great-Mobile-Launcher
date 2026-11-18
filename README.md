@@ -2,7 +2,8 @@
 # TGLM-The-Great-Mobile-Launcher
 A custom Mobile Launcher for android. Will soon be the top. i hope. i wish. i expect
 
-![img_1.png](img_1.png) <img width="268" height="518" alt="image" src="https://github.com/user-attachments/assets/e42f5a18-bd8e-4730-8c40-593dc5f73dc3" /> 
+![img_1.png](img_1.png) 
+ <img width="268" height="518" alt="WhatsApp Image 2026-11-15 at 4 12 46 PM" src="https://github.com/user-attachments/assets/1cfb99a8-d0d4-4e8d-b561-e9e2ea74892f" />
 <img width="312" height="656" alt="Screenshot 2026-11-07 163228" src="https://github.com/user-attachments/assets/6608ad2c-cdbf-448f-8ac2-57de8598a567" />
 
 
