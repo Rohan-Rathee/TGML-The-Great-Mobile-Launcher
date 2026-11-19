@@ -2,8 +2,10 @@
 package com.example.tgml_the_great_mobile_launcher.ui
 
 import android.appwidget.AppWidgetProviderInfo
+import android.content.Intent
 import android.net.Uri
 import android.os.Build
+import android.provider.Settings
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -14,8 +16,10 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.awaitLongPressOrCancellation
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -48,10 +52,12 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -126,14 +132,16 @@ fun HomeScreen(
 	var folderDragOffset by remember { mutableStateOf(Offset.Zero) }
 	var folderDragPointer by remember { mutableStateOf(Offset.Zero) }
 	var gridBounds by remember { mutableStateOf<Rect?>(null) }
+	var selectedShortcutId by remember { mutableStateOf<String?>(null) }
+	var renameShortcutId by remember { mutableStateOf<String?>(null) }
+	var renameShortcutName by remember { mutableStateOf("") }
+	var renameShortcutOpen by remember { mutableStateOf(false) }
+	val context = LocalContext.current
 
 
 	Box(
 		modifier = Modifier
 			.fillMaxSize()
-			.pointerInput(Unit) {
-				detectTapGestures(onLongPress = { editMode = true })
-			}
 			.onGloballyPositioned { coordinates ->
 				rootBounds = coordinates.boundsInRoot()
 			}
@@ -383,73 +391,94 @@ fun HomeScreen(
 											itemCoordinates.value = it
 											dropTargetBounds[item.id] = it.boundsInRoot()
 										}
-										.pointerInput(
-											item.id,
-											targetPage,
-											cellWidthPx,
-											cellHeightPx
-										) {
-											detectDragGesturesAfterLongPress(
-												onDragStart = { position ->
-													editMode = true
-													draggedItemId = item.id
-													itemCoordinates.value?.localToRoot(position)?.let { lastPointerRoot = it }
-													dragOffset = Offset.Zero
-												},
-												onDrag = { change, amount ->
-													change.consume()
-													dragOffset += amount
-													itemCoordinates.value?.localToRoot(change.position)?.let { lastPointerRoot = it }
-												},
-												onDragEnd = {
-													val release = lastPointerRoot
-													if (trashBounds?.contains(release) == true) {
-														homeController.removeItem(item.id)
-													} else {
-														val target = homeController.itemsOnPage(targetPage).firstOrNull { candidate ->
-															candidate.id != item.id &&
-																	(candidate.type == HomeItemType.APP_SHORTCUT || candidate.type == HomeItemType.FOLDER) &&
-																	dropTargetBounds[candidate.id]?.contains(release) == true
-														}
-														val folderDrop = target?.let { dropTarget ->
-															when (dropTarget.type) {
-																HomeItemType.FOLDER -> homeController.moveItemIntoFolder(item.id, dropTarget.id)
-																HomeItemType.APP_SHORTCUT -> homeController.createFolder(item.id, dropTarget.id) != null
-																else -> false
-															}
-														} ?: false
-														if (!folderDrop) {
-															val root = rootBounds
-															val edgeThreshold = with(density) { 32.dp.toPx() }
-															val pageDelta = when {
-																root != null && release.x <= root.left + edgeThreshold -> -1
-																root != null && release.x >= root.right - edgeThreshold -> 1
-																else -> 0
-															}
-															val destinationPage = (targetPage + pageDelta).coerceIn(0, pageCount - 1)
-															val rawY = floor((item.cellY * cellHeightPx + dragOffset.y + cellHeightPx / 2f) / cellHeightPx).toInt().coerceIn(0, grid.rows - 1)
-															val moved = if (destinationPage != targetPage) {
-																val edgeCellX = if (pageDelta > 0) 0 else grid.columns - 1
-																val edgeMove = homeController.moveItem(item.id, destinationPage, edgeCellX, rawY)
-																if (edgeMove) true else {
-																	val fallback = HomePlacementEngine.findFirstAvailable(
-																		items = homeController.items.filter { it.parentFolderId == null },
-																		page = destinationPage,
-																		grid = grid
-																	)
-																	fallback != null && homeController.moveItem(item.id, destinationPage, fallback.first, fallback.second)
-																}
+										.pointerInput(item.id, targetPage, cellWidthPx, cellHeightPx) {
+											awaitEachGesture {
+												val down = awaitFirstDown(requireUnconsumed = false)
+												val longPress = awaitLongPressOrCancellation(down.id)
+												if (longPress == null) return@awaitEachGesture
+
+												var dragging = false
+												var accumulated = Offset.Zero
+												var released = false
+												while (!released) {
+													val event = awaitPointerEvent()
+													val change = event.changes.firstOrNull { it.id == down.id } ?: break
+													if (!change.pressed) {
+														change.consume()
+														val release = itemCoordinates.value?.localToRoot(change.position) ?: lastPointerRoot
+														if (!dragging) {
+															selectedShortcutId = item.id
+														} else {
+															lastPointerRoot = release
+															if (trashBounds?.contains(release) == true) {
+																homeController.removeItem(item.id)
 															} else {
-																val rawX = floor((item.cellX * cellWidthPx + dragOffset.x + cellWidthPx / 2f) / cellWidthPx).toInt().coerceIn(0, grid.columns - 1)
-																homeController.moveItem(item.id, targetPage, rawX, rawY) }
-															if (moved && destinationPage != targetPage) onPageSelected(destinationPage) } }
+																val target = homeController.itemsOnPage(targetPage).firstOrNull { candidate ->
+																	candidate.id != item.id &&
+																			(candidate.type == HomeItemType.APP_SHORTCUT || candidate.type == HomeItemType.FOLDER) &&
+																			dropTargetBounds[candidate.id]?.contains(release) == true
+																}
+																val folderDrop = target?.let { dropTarget ->
+																	when (dropTarget.type) {
+																		HomeItemType.FOLDER -> homeController.moveItemIntoFolder(item.id, dropTarget.id)
+																		HomeItemType.APP_SHORTCUT -> homeController.createFolder(item.id, dropTarget.id) != null
+																		else -> false
+																	}
+																} ?: false
+																if (!folderDrop) {
+																	val root = rootBounds
+																	val edgeThreshold = with(density) { 32.dp.toPx() }
+																	val pageDelta = when {
+																		root != null && release.x <= root.left + edgeThreshold -> -1
+																		root != null && release.x >= root.right - edgeThreshold -> 1
+																		else -> 0
+																	}
+																	val destinationPage = (targetPage + pageDelta).coerceIn(0, pageCount - 1)
+																	val rawY = floor((item.cellY * cellHeightPx + dragOffset.y + cellHeightPx / 2f) / cellHeightPx).toInt().coerceIn(0, grid.rows - 1)
+																	val moved = if (destinationPage != targetPage) {
+																		val edgeCellX = if (pageDelta > 0) 0 else grid.columns - 1
+																		val edgeMove = homeController.moveItem(item.id, destinationPage, edgeCellX, rawY)
+																		if (edgeMove) true else {
+																			val fallback = HomePlacementEngine.findFirstAvailable(
+																				items = homeController.items.filter { it.parentFolderId == null },
+																				page = destinationPage,
+																				grid = grid
+																			)
+																			fallback != null && homeController.moveItem(item.id, destinationPage, fallback.first, fallback.second)
+																		}
+																	} else {
+																		val rawX = floor((item.cellX * cellWidthPx + dragOffset.x + cellWidthPx / 2f) / cellWidthPx).toInt().coerceIn(0, grid.columns - 1)
+																		homeController.moveItem(item.id, targetPage, rawX, rawY)
+																	}
+																	if (moved && destinationPage != targetPage) onPageSelected(destinationPage)
+																}
+															}
+															dragOffset = Offset.Zero
+															draggedItemId = null
+														}
+														released = true
+													} else {
+														val delta = change.positionChange()
+														if (delta != Offset.Zero) {
+															accumulated += delta
+															if (!dragging && accumulated.getDistance() > viewConfiguration.touchSlop) {
+																dragging = true
+																editMode = true
+																draggedItemId = item.id
+																dragOffset = accumulated
+															} else if (dragging) {
+																dragOffset += delta
+															}
+															itemCoordinates.value?.localToRoot(change.position)?.let { lastPointerRoot = it }
+															if (dragging) change.consume()
+														}
+													}
+												}
+												if (!released && dragging) {
 													dragOffset = Offset.Zero
 													draggedItemId = null
-												},
-												onDragCancel = {
-													dragOffset = Offset.Zero
-													draggedItemId = null }
-											)
+												}
+											}
 										}
 										.clickable(enabled = !editMode) {
 											onAppClick(app)
@@ -471,7 +500,7 @@ fun HomeScreen(
 										)
 
 										Text(
-											text = app.name,
+											text = item.customLabel ?: app.name,
 											color = Color.White,
 											fontSize = 11.sp,
 											maxLines = 2,
@@ -806,6 +835,52 @@ fun HomeScreen(
 				}
 			}
 		}
+		selectedShortcutId?.let { shortcutId ->
+			val shortcut = homeController.items.firstOrNull { it.id == shortcutId }
+			val app = shortcut?.let { item -> apps.find { it.packageName == item.packageName && it.activityName == item.activityName } }
+			if (shortcut == null || app == null) selectedShortcutId = null
+			else AlertDialog(
+				onDismissRequest = { selectedShortcutId = null },
+				title = { Text(app.name) },
+				text = { Text("Edit home screen shortcut") },
+				confirmButton = {
+					TextButton(onClick = {
+						renameShortcutId = shortcut.id
+						renameShortcutName = shortcut.customLabel ?: app.name
+						renameShortcutOpen = true
+						selectedShortcutId = null
+					}) { Text("Rename") }
+				},
+				dismissButton = {
+					Row {
+						TextButton(onClick = {
+							context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${app.packageName}")))
+							selectedShortcutId = null
+						}) { Text("App info") }
+						TextButton(onClick = {
+							context.startActivity(Intent(Intent.ACTION_DELETE, Uri.parse("package:${app.packageName}")))
+							selectedShortcutId = null
+						}) { Text("Uninstall") }
+						TextButton(onClick = {
+							homeController.removeItem(shortcut.id)
+							selectedShortcutId = null
+						}) { Text("Remove") }
+					}
+				}
+			)
+		}
+		if (renameShortcutOpen) AlertDialog(
+			onDismissRequest = { renameShortcutOpen = false },
+			title = { Text("Rename app") },
+			text = { OutlinedTextField(value = renameShortcutName, onValueChange = { renameShortcutName = it }, singleLine = true) },
+			confirmButton = {
+				TextButton(onClick = {
+					renameShortcutId?.let { homeController.renameShortcut(it, renameShortcutName) }
+					renameShortcutOpen = false
+				}) { Text("Save") }
+			},
+			dismissButton = { TextButton(onClick = { renameShortcutOpen = false }) { Text("Cancel") } }
+		)
 		if (wallpaperOptionsOpen) {
 			WallpaperOptionsDialog(
 				onPickBackground = onPickBackground,

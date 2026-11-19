@@ -20,6 +20,7 @@ data class HomeItem(
 	val activityName: String? = null,
 	val widgetId: Int? = null,
 	val folderName: String? = null,
+	val customLabel: String? = null,
 	val parentFolderId: String? = null
 ) {
 	init {

@@ -85,24 +85,24 @@ class HomeController(context: Context) {
 		return true
 	}
 
-    fun resizeWidget(widgetItemId: String, spanX: Int, spanY: Int): Boolean {
-        if (spanX <= 0 || spanY <= 0) return false
-        val roots = items.filter { it.parentFolderId == null }
-        val resized = HomePlacementEngine.resizeItem(
-            items = roots,
-            itemId = widgetItemId,
-            spanX = spanX,
-            spanY = spanY,
-            grid = grid
-        ) ?: return false
-        val updated = resized.associateBy { it.id }
-        for (index in items.indices) updated[items[index].id]?.let { items[index] = it }
-        save()
-        return true
-    }
+	fun resizeWidget(widgetItemId: String, spanX: Int, spanY: Int): Boolean {
+		if (spanX <= 0 || spanY <= 0) return false
+		val roots = items.filter { it.parentFolderId == null }
+		val resized = HomePlacementEngine.resizeItem(
+			items = roots,
+			itemId = widgetItemId,
+			spanX = spanX,
+			spanY = spanY,
+			grid = grid
+		) ?: return false
+		val updated = resized.associateBy { it.id }
+		for (index in items.indices) updated[items[index].id]?.let { items[index] = it }
+		save()
+		return true
+	}
 
-    fun widgetIdForItem(itemId: String): Int? =
-        items.firstOrNull { it.id == itemId && it.type == HomeItemType.WIDGET }?.widgetId
+	fun widgetIdForItem(itemId: String): Int? =
+		items.firstOrNull { it.id == itemId && it.type == HomeItemType.WIDGET }?.widgetId
 
 	fun moveItem(
 		itemId: String,
@@ -182,6 +182,16 @@ class HomeController(context: Context) {
 		items.add(second.copy(parentFolderId = folder.id, cellX = 0, cellY = 0))
 		save()
 		return folder.id
+	}
+
+	fun renameShortcut(itemId: String, name: String): Boolean {
+		val cleanName = name.trim()
+		if (cleanName.isBlank()) return false
+		val index = items.indexOfFirst { it.id == itemId && it.type == HomeItemType.APP_SHORTCUT }
+		if (index == -1) return false
+		items[index] = items[index].copy(customLabel = cleanName)
+		save()
+		return true
 	}
 
 	fun renameFolder(folderId: String, name: String): Boolean {

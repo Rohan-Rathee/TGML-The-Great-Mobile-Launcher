@@ -49,6 +49,7 @@ class HomeRepo(context: Context) {
 							widgetId = widgetId,
 							folderName = item.optString("folderName")
 								.takeIf { it.isNotBlank() },
+							customLabel = item.optString("customLabel").takeIf { it.isNotBlank() },
 							parentFolderId = item.optString("parentFolderId")
 								.takeIf { it.isNotBlank() }
 						)
@@ -77,6 +78,7 @@ class HomeRepo(context: Context) {
 					put("activityName", item.activityName)
 					put("widgetId", item.widgetId)
 					put("folderName", item.folderName)
+					put("customLabel", item.customLabel)
 					put("parentFolderId", item.parentFolderId)
 				}
 			)
