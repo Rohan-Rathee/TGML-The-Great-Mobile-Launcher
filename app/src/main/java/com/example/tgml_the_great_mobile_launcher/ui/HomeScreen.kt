@@ -64,6 +64,7 @@ import androidx.compose.ui.unit.sp
 import com.example.tgml_the_great_mobile_launcher.AppInfo
 import com.example.tgml_the_great_mobile_launcher.LauncherLayout
 import com.example.tgml_the_great_mobile_launcher.SideHandleFolder
+import com.example.tgml_the_great_mobile_launcher.commandcenter.CommandCenter
 import com.example.tgml_the_great_mobile_launcher.gestures.GestureType
 import com.example.tgml_the_great_mobile_launcher.gestures.detectLauncherSwipes
 import com.example.tgml_the_great_mobile_launcher.home.HomeController
@@ -83,6 +84,9 @@ fun HomeScreen(
 	apps: List<AppInfo>,
 	homeController: HomeController,
 	onAppClick: (AppInfo) -> Unit,
+	commandCenterOpen: Boolean,
+	onCloseCommandCenter: () -> Unit,
+	onPinApp: (AppInfo) -> Unit,
 	backgroundUri: Uri?,
 	page: Int,
 	pageCount: Int,
@@ -146,6 +150,25 @@ fun HomeScreen(
 				rootBounds = coordinates.boundsInRoot()
 			}
 	) {
+		if (commandCenterOpen) {
+			CommandCenter(
+				apps = apps,
+				homeItems = homeController.items.toList(),
+				onLaunchApp = { app ->
+					onAppClick(app)
+					onCloseCommandCenter()
+				},
+				onPinApp = { app ->
+					onPinApp(app)
+					onCloseCommandCenter()
+				},
+				onOpenSettings = {
+					settingsOpen = true
+					onCloseCommandCenter()
+				},
+				onClose = onCloseCommandCenter
+			)
+		}
 
 		if (editMode) {
 			LauncherBackground(backgroundUri = backgroundUri, blurred = true)

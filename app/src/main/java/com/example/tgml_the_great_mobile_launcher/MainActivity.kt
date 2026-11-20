@@ -15,6 +15,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.mutableStateOf
 import androidx.core.content.edit
 import androidx.core.net.toUri
+import com.example.tgml_the_great_mobile_launcher.commandcenter.AppUsageStore
 import com.example.tgml_the_great_mobile_launcher.data.GesturePreferences
 import com.example.tgml_the_great_mobile_launcher.ui.LauncherNavigation
 import com.example.tgml_the_great_mobile_launcher.ui.PageTransitionStyle
@@ -24,7 +25,7 @@ import com.example.tgml_the_great_mobile_launcher.ui.theme.TGMLTheGreatMobileLau
 class MainActivity : ComponentActivity()
 {
 	private val selectedLayout = mutableStateOf(LauncherLayout.RADIAL)
-    private val selectedTransitionStyle = mutableStateOf(PageTransitionStyle.SLIDE)
+	private val selectedTransitionStyle = mutableStateOf(PageTransitionStyle.SLIDE)
 	private val sideHandleEnabled = mutableStateOf(false)
 	private val sideHandleHomeIntegration = mutableStateOf(false)
 	private val sideHandleFolders = mutableStateOf<List<SideHandleFolder>>(emptyList())
@@ -66,12 +67,12 @@ class MainActivity : ComponentActivity()
 		} catch (_: Exception) {
 			LauncherLayout.RADIAL
 		}
-        val savedTransition = getSharedPreferences("launcher", MODE_PRIVATE).getString("page_transition", PageTransitionStyle.SLIDE.name)
-        selectedTransitionStyle.value = try {
-            PageTransitionStyle.valueOf(savedTransition ?: PageTransitionStyle.SLIDE.name)
-        } catch (_: Exception) {
-            PageTransitionStyle.SLIDE
-        }
+		val savedTransition = getSharedPreferences("launcher", MODE_PRIVATE).getString("page_transition", PageTransitionStyle.SLIDE.name)
+		selectedTransitionStyle.value = try {
+			PageTransitionStyle.valueOf(savedTransition ?: PageTransitionStyle.SLIDE.name)
+		} catch (_: Exception) {
+			PageTransitionStyle.SLIDE
+		}
 		val homePageCount = getSharedPreferences("launcher", MODE_PRIVATE).getInt("home_page_count", 1).coerceAtLeast(1)
 		val gestureMappings = GesturePreferences.load(this)
 		sideHandleEnabled.value = SideHandlePreferences.isEnabled(this)
@@ -112,19 +113,19 @@ class MainActivity : ComponentActivity()
 					startService(Intent(this, SideHandleService::class.java).setAction(SideHandleService.ACTION_REFRESH))
 				}
 			},
-            initialHomePageCount = homePageCount,
-            transitionStyle = selectedTransitionStyle.value,
-            onHomePageCountChange = { count ->
-                getSharedPreferences("launcher", MODE_PRIVATE).edit {
-                    putInt("home_page_count", count.coerceAtLeast(1))
-                }
-            },
-            onTransitionStyleChange = { style ->
-                selectedTransitionStyle.value = style
-                getSharedPreferences("launcher", MODE_PRIVATE).edit {
-                    putString("page_transition", style.name)
-                }
-            },
+			initialHomePageCount = homePageCount,
+			transitionStyle = selectedTransitionStyle.value,
+			onHomePageCountChange = { count ->
+				getSharedPreferences("launcher", MODE_PRIVATE).edit {
+					putInt("home_page_count", count.coerceAtLeast(1))
+				}
+			},
+			onTransitionStyleChange = { style ->
+				selectedTransitionStyle.value = style
+				getSharedPreferences("launcher", MODE_PRIVATE).edit {
+					putString("page_transition", style.name)
+				}
+			},
 			onPickBackground = {
 				backgroundPicker.launch(arrayOf("image/*"))
 			},
@@ -147,10 +148,11 @@ class MainActivity : ComponentActivity()
 					}
 			},
 			onAppClick = { app ->
+				AppUsageStore.recordLaunch(this, app)
 				launchApp(app)
 			}
 		)}}
-    }
+	}
 
 	override fun onResume() {
 		super.onResume()
@@ -177,24 +179,24 @@ class MainActivity : ComponentActivity()
 		super.onStop()
 	}
 
-    private fun getInstalledApps(): List<AppInfo> {
-        val intent = Intent(Intent.ACTION_MAIN).apply { addCategory(Intent.CATEGORY_LAUNCHER) }
+	private fun getInstalledApps(): List<AppInfo> {
+		val intent = Intent(Intent.ACTION_MAIN).apply { addCategory(Intent.CATEGORY_LAUNCHER) }
 
-        return packageManager
-            .queryIntentActivities(intent, 0)
-            .map {
-                AppInfo(
-                    name = it.loadLabel(packageManager).toString(),
-                    packageName = it.activityInfo.packageName,
-                    activityName = it.activityInfo.name,
-                    icon = it.loadIcon(packageManager)
-                )
+		return packageManager
+			.queryIntentActivities(intent, 0)
+			.map {
+				AppInfo(
+					name = it.loadLabel(packageManager).toString(),
+					packageName = it.activityInfo.packageName,
+					activityName = it.activityInfo.name,
+					icon = it.loadIcon(packageManager)
+				)
 			}
-            .sortedBy { it.name.lowercase() }
-    }
+			.sortedBy { it.name.lowercase() }
+	}
 
-    private fun launchApp(app: AppInfo) {
-        val intent = Intent().apply { setClassName(app.packageName, app.activityName) }
-        startActivity(intent)
-    }
+	private fun launchApp(app: AppInfo) {
+		val intent = Intent().apply { setClassName(app.packageName, app.activityName) }
+		startActivity(intent)
+	}
 }

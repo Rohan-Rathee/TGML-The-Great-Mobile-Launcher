@@ -56,14 +56,15 @@ fun LauncherNavigation(
 	onSideHandleFoldersChange: (List<SideHandleFolder>) -> Unit,
 ) {
 
-    var drawerOpen by rememberSaveable { mutableStateOf(false) }
-    var openingGesture by rememberSaveable { mutableStateOf<GestureType?>(null) }
-    var homePage by rememberSaveable { mutableStateOf(0) }
-    var homePageCount by rememberSaveable { mutableStateOf(initialHomePageCount.coerceAtLeast(1)) }
-    var drawerPage by rememberSaveable { mutableStateOf(0) }
-    val drawerPageCount = if (layout == LauncherLayout.MULTI_PAGE) {
+	var drawerOpen by rememberSaveable { mutableStateOf(false) }
+	var commandCenterOpen by rememberSaveable { mutableStateOf(false) }
+	var openingGesture by rememberSaveable { mutableStateOf<GestureType?>(null) }
+	var homePage by rememberSaveable { mutableStateOf(0) }
+	var homePageCount by rememberSaveable { mutableStateOf(initialHomePageCount.coerceAtLeast(1)) }
+	var drawerPage by rememberSaveable { mutableStateOf(0) }
+	val drawerPageCount = if (layout == LauncherLayout.MULTI_PAGE) {
 		maxOf(1, (apps.size + APP_DRAWER_PAGE_SIZE - 1) / APP_DRAWER_PAGE_SIZE)
-    } else 1
+	} else 1
 	val context = LocalContext.current
 	val homeController = remember(context) {
 		HomeController(context.applicationContext)
@@ -173,15 +174,15 @@ fun LauncherNavigation(
 		}
 	}
 
-    val handler = remember(gestureMappings) { GestureHandler(gestureMappings) }
+	val handler = remember(gestureMappings) { GestureHandler(gestureMappings) }
 
-    LaunchedEffect(initialHomePageCount) {
-        homePageCount = initialHomePageCount.coerceAtLeast(1)
-        homePage = homePage.coerceIn(0, homePageCount - 1)
-    }
-    LaunchedEffect(drawerPageCount) {
-        drawerPage = drawerPage.coerceIn(0, drawerPageCount - 1)
-    }
+	LaunchedEffect(initialHomePageCount) {
+		homePageCount = initialHomePageCount.coerceAtLeast(1)
+		homePage = homePage.coerceIn(0, homePageCount - 1)
+	}
+	LaunchedEffect(drawerPageCount) {
+		drawerPage = drawerPage.coerceIn(0, drawerPageCount - 1)
+	}
 
 	LaunchedEffect(drawerOpen, sideHandleEnabled, sideHandleHomeIntegration) {
 		if (sideHandleEnabled) {
@@ -216,10 +217,11 @@ fun LauncherNavigation(
 		}
 	}
 
-    BackHandler(enabled = drawerOpen) {
-        drawerOpen = false
-        openingGesture = null
-    }
+	BackHandler(enabled = commandCenterOpen) { commandCenterOpen = false }
+	BackHandler(enabled = drawerOpen) {
+		drawerOpen = false
+		openingGesture = null
+	}
 	fun startWidgetBinding(provider: AppWidgetProviderInfo) {
 		val widgetId = widgetHost.allocateWidgetId()
 
@@ -270,102 +272,108 @@ fun LauncherNavigation(
 		}
 	}
 
-    fun reverseOf(gesture: GestureType): GestureType? = when (gesture) {
-        GestureType.SWIPE_UP -> GestureType.SWIPE_DOWN
-        GestureType.SWIPE_DOWN -> GestureType.SWIPE_UP
-        GestureType.SWIPE_LEFT -> GestureType.SWIPE_RIGHT
-        GestureType.SWIPE_RIGHT -> GestureType.SWIPE_LEFT
-        else -> null
-    }
+	fun reverseOf(gesture: GestureType): GestureType? = when (gesture) {
+		GestureType.SWIPE_UP -> GestureType.SWIPE_DOWN
+		GestureType.SWIPE_DOWN -> GestureType.SWIPE_UP
+		GestureType.SWIPE_LEFT -> GestureType.SWIPE_RIGHT
+		GestureType.SWIPE_RIGHT -> GestureType.SWIPE_LEFT
+		else -> null
+	}
 
-    fun handleGesture(gesture: GestureType) {
-        val context = if (drawerOpen) GestureContext.APP_DRAWER else GestureContext.HOME
-        val action = handler.resolve(gesture, context)
-        when {
-            drawerOpen && (action == GestureAction.GO_HOME || (action == null && openingGesture?.let { reverseOf(it) == gesture } == true)) -> {
-                drawerOpen = false
-                openingGesture = null
-            }
-            action == GestureAction.OPEN_APP_DRAWER && !drawerOpen -> {
-                drawerOpen = true
-                openingGesture = gesture
-            }
-            action == GestureAction.CHANGE_LAYOUT -> {
-                val layouts = LauncherLayout.entries
-                val next = (layouts.indexOf(layout) + 1) % layouts.size
-                onLayoutChange(layouts[next])
-            }
-            !drawerOpen && context == GestureContext.HOME && gesture in listOf(GestureType.SWIPE_LEFT, GestureType.SWIPE_RIGHT) && (action == null || action == GestureAction.NONE) -> {
-                homePage = (homePage + if (gesture == GestureType.SWIPE_LEFT) 1 else -1).coerceIn(0, homePageCount - 1)
-            }
-            drawerOpen && gesture in listOf(GestureType.SWIPE_LEFT, GestureType.SWIPE_RIGHT) && (action == null || action == GestureAction.NONE) -> {
-                drawerPage = (drawerPage + if (gesture == GestureType.SWIPE_LEFT) 1 else -1).coerceIn(0, drawerPageCount - 1)
-            }
-            else -> Unit
-        }
-    }
+	fun handleGesture(gesture: GestureType) {
+		val context = if (drawerOpen) GestureContext.APP_DRAWER else GestureContext.HOME
+		val action = handler.resolve(gesture, context)
+		when {
+			drawerOpen && (action == GestureAction.GO_HOME || (action == null && openingGesture?.let { reverseOf(it) == gesture } == true)) -> {
+				drawerOpen = false
+				openingGesture = null
+			}
+			action == GestureAction.OPEN_APP_DRAWER && !drawerOpen -> {
+				drawerOpen = true
+				openingGesture = gesture
+			}
+			!drawerOpen && context == GestureContext.HOME && gesture == GestureType.SWIPE_DOWN && (action == null || action == GestureAction.NONE) -> {
+				commandCenterOpen = true
+			}
+			action == GestureAction.CHANGE_LAYOUT -> {
+				val layouts = LauncherLayout.entries
+				val next = (layouts.indexOf(layout) + 1) % layouts.size
+				onLayoutChange(layouts[next])
+			}
+			!drawerOpen && context == GestureContext.HOME && gesture in listOf(GestureType.SWIPE_LEFT, GestureType.SWIPE_RIGHT) && (action == null || action == GestureAction.NONE) -> {
+				homePage = (homePage + if (gesture == GestureType.SWIPE_LEFT) 1 else -1).coerceIn(0, homePageCount - 1)
+			}
+			drawerOpen && gesture in listOf(GestureType.SWIPE_LEFT, GestureType.SWIPE_RIGHT) && (action == null || action == GestureAction.NONE) -> {
+				drawerPage = (drawerPage + if (gesture == GestureType.SWIPE_LEFT) 1 else -1).coerceIn(0, drawerPageCount - 1)
+			}
+			else -> Unit
+		}
+	}
 
 
-    if (drawerOpen) {
-        AppScreen(
-            apps = apps,
-            backgroundUri = backgroundUri,
-            layout = layout,
-            drawerPage = drawerPage,
-            drawerPageCount = drawerPageCount,
-            transitionStyle = transitionStyle,
-            onDrawerPageSelected = { drawerPage = it.coerceIn(0, drawerPageCount - 1) },
-            onAddHomeScreen = {
-                homePageCount += 1
-                homePage = homePageCount - 1
-                onHomePageCountChange(homePageCount)
-            },
-            onPickBackground = onPickBackground,
-            onLayoutChange = onLayoutChange,
-            onTransitionStyleChange = onTransitionStyleChange,
-            onAppClick = onAppClick,
-            onGesture = ::handleGesture,
-	        onUseSystemWallpaper = onUseSystemWallpaper,
-	        onOpenSystemWallpaper = onOpenSystemWallpaper,
-	        sideHandleEnabled = sideHandleEnabled,
-	        sideHandleHomeIntegration = sideHandleHomeIntegration,
-	        sideHandleFolders = sideHandleFolders,
-	        onSideHandleEnabledChange = onSideHandleEnabledChange,
-	        onSideHandleHomeIntegrationChange = onSideHandleHomeIntegrationChange,
-	        onSideHandleFoldersChange = onSideHandleFoldersChange,
-        )
-    } else {
-        HomeScreen(
-	        backgroundUri = backgroundUri,
-	        page = homePage,
-	        pageCount = homePageCount,
-	        transitionStyle = transitionStyle,
-	        onPageSelected = { homePage = it.coerceIn(0, homePageCount - 1) },
-	        onGesture = ::handleGesture,
-	        layout = layout,
-	        onAddHomeScreen = {
-				homePageCount +=1
-		        homePage = homePageCount -1
-		        onHomePageCountChange(homePageCount)
-	        },
-	        onPickBackground = onPickBackground,
-	        onLayoutChange = onLayoutChange,
-	        onTransitionStyleChange = onTransitionStyleChange,
-	        apps = apps,
-	        homeController = homeController,
-	        onAppClick = onAppClick,
-	        widgetProviders = widgetProviders,
-	        onWidgetSelected = ::startWidgetBinding,
-	        widgetHost = widgetHost,
-	        onWidgetConfigure = ::configureExistingWidget,
-	        onUseSystemWallpaper = onUseSystemWallpaper,
-	        onOpenSystemWallpaper = onOpenSystemWallpaper,
-	        sideHandleEnabled = sideHandleEnabled,
-	        sideHandleHomeIntegration = sideHandleHomeIntegration,
-	        sideHandleFolders = sideHandleFolders,
-	        onSideHandleEnabledChange = onSideHandleEnabledChange,
-	        onSideHandleHomeIntegrationChange = onSideHandleHomeIntegrationChange,
-	        onSideHandleFoldersChange = onSideHandleFoldersChange,
+	if (drawerOpen) {
+		AppScreen(
+			apps = apps,
+			backgroundUri = backgroundUri,
+			layout = layout,
+			drawerPage = drawerPage,
+			drawerPageCount = drawerPageCount,
+			transitionStyle = transitionStyle,
+			onDrawerPageSelected = { drawerPage = it.coerceIn(0, drawerPageCount - 1) },
+			onAddHomeScreen = {
+				homePageCount += 1
+				homePage = homePageCount - 1
+				onHomePageCountChange(homePageCount)
+			},
+			onPickBackground = onPickBackground,
+			onLayoutChange = onLayoutChange,
+			onTransitionStyleChange = onTransitionStyleChange,
+			onAppClick = onAppClick,
+			onGesture = ::handleGesture,
+			onUseSystemWallpaper = onUseSystemWallpaper,
+			onOpenSystemWallpaper = onOpenSystemWallpaper,
+			sideHandleEnabled = sideHandleEnabled,
+			sideHandleHomeIntegration = sideHandleHomeIntegration,
+			sideHandleFolders = sideHandleFolders,
+			onSideHandleEnabledChange = onSideHandleEnabledChange,
+			onSideHandleHomeIntegrationChange = onSideHandleHomeIntegrationChange,
+			onSideHandleFoldersChange = onSideHandleFoldersChange,
 		)
-    }
+	} else {
+		HomeScreen(
+			backgroundUri = backgroundUri,
+			page = homePage,
+			pageCount = homePageCount,
+			transitionStyle = transitionStyle,
+			onPageSelected = { homePage = it.coerceIn(0, homePageCount - 1) },
+			onGesture = ::handleGesture,
+			layout = layout,
+			onAddHomeScreen = {
+				homePageCount +=1
+				homePage = homePageCount -1
+				onHomePageCountChange(homePageCount)
+			},
+			onPickBackground = onPickBackground,
+			onLayoutChange = onLayoutChange,
+			onTransitionStyleChange = onTransitionStyleChange,
+			apps = apps,
+			homeController = homeController,
+			onAppClick = onAppClick,
+			commandCenterOpen = commandCenterOpen,
+			onCloseCommandCenter = { commandCenterOpen = false },
+			onPinApp = { app -> homeController.addAppShortcut(app.packageName, app.activityName, homePage) },
+			widgetProviders = widgetProviders,
+			onWidgetSelected = ::startWidgetBinding,
+			widgetHost = widgetHost,
+			onWidgetConfigure = ::configureExistingWidget,
+			onUseSystemWallpaper = onUseSystemWallpaper,
+			onOpenSystemWallpaper = onOpenSystemWallpaper,
+			sideHandleEnabled = sideHandleEnabled,
+			sideHandleHomeIntegration = sideHandleHomeIntegration,
+			sideHandleFolders = sideHandleFolders,
+			onSideHandleEnabledChange = onSideHandleEnabledChange,
+			onSideHandleHomeIntegrationChange = onSideHandleHomeIntegrationChange,
+			onSideHandleFoldersChange = onSideHandleFoldersChange,
+		)
+	}
 }
