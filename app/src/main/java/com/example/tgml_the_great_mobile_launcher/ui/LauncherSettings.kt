@@ -29,6 +29,7 @@ import com.example.tgml_the_great_mobile_launcher.AppInfo
 import com.example.tgml_the_great_mobile_launcher.LauncherLayout
 import com.example.tgml_the_great_mobile_launcher.SideHandleFolder
 import com.example.tgml_the_great_mobile_launcher.ui.settings.SettingsHome
+import com.example.tgml_the_great_mobile_launcher.ui.settings.SettingsNotifications
 import com.example.tgml_the_great_mobile_launcher.ui.settings.SettingsLayout
 import com.example.tgml_the_great_mobile_launcher.ui.settings.SettingsPage
 import com.example.tgml_the_great_mobile_launcher.ui.settings.SettingsSideHandle
@@ -140,6 +141,7 @@ fun LauncherSettings(
 						onTransitionStyleChange = onTransitionStyleChange
 					)
 
+					SettingsPage.NOTIFICATIONS -> SettingsNotifications()
 					SettingsPage.SIDE_HANDLE -> SettingsSideHandle(
 						apps = apps,
 						enabled = sideHandleEnabled,

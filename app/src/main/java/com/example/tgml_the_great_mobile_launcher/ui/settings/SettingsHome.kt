@@ -51,5 +51,10 @@ fun SettingsHome(
 			description = "Ok, these descriptions go away the next to next update since everything is what it's title says. You have been integral to the development of this launcher if you can read this",
 			onClick = { onNavigate(SettingsPage.SIDE_HANDLE) }
 		)
+		SettingsCategoryCard(
+			title = "Side Handle",
+			description = "Ok, these descriptions go away the next to next update since everything is what it's title says. You have been integral to the development of this launcher if you can read this",
+			onClick = { onNavigate(SettingsPage.SIDE_HANDLE) }
+		)
 	}
 }

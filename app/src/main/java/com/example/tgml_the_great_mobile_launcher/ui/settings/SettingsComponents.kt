@@ -25,6 +25,8 @@ enum class SettingsPage(
 	WALLPAPER("Wallpaper", "Customise your launcher background"),
 	TRANSITIONS("Page Transitions", "Customise page animations"),
 	SIDE_HANDLE("Side Handle", "Configure your side handle"),
+	NOTIFICATIONS("Notifications", "Badges, notification center and gesture"),
+
 }
 
 @Composable
