@@ -8,11 +8,12 @@ A custom Mobile Launcher for android. Will soon be the top. i hope. i wish. i ex
 
 
 
-WEEK 4 FEATURES!!:
-1. A BRAND NEW BACKGROUND PASSTHOUGH (SYNCS WITH ANDROID BACKGROUND)
-2. AN AMAZING UNIVERSAL SIDE HANDLE TO QUICK LAUNCH APPS AS WELL AS A LOT OF CUSTOMIZATIONS
-3. IMPROVED FOLDER MANAGEMENT NOW SUPPORTS DRAG TO DELETE AND DRAG TO REMOVE FROM FOLDER
-
+WEEK 5 FEATURES!!:
+1. A dedicated settings screen!!!
+2. App hold menu and command center search!!!!!!!!!
+3. a separate notification center connected to the phone's native one
+4. App locks and privacy guards
+5. multi home envrionments to support multiple users
 Requirements and build
 
 Running TGML
@@ -52,7 +53,10 @@ Current Feature List:
 12. Configurable Home Screen Grid
 13. Crosspage dragging of icons
 14. drag and drop to delete
-15. persistence of shortucts
+15. persistence of shortucts 
+16. A BRAND NEW BACKGROUND PASSTHOUGH (SYNCS WITH ANDROID BACKGROUND)
+17. AMAZING UNIVERSAL SIDE HANDLE TO QUICK LAUNCH APPS AS WELL AS A LOT OF CUSTOMIZATIONS 
+18. IMPROVED FOLDER MANAGEMENT NOW SUPPORTS DRAG TO DELETE AND DRAG TO REMOVE FROM FOLDER
 
 
 WIDGETS AND FOLDERS LATEST!!!!!!!!
