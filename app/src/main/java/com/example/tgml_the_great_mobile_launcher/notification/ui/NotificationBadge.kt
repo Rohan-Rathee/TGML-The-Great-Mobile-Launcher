@@ -26,6 +26,7 @@ import com.example.tgml_the_great_mobile_launcher.notification.NotificationRepos
 
 private val BadgeColor = Color(0xFFE53935)
 
+
 @Composable
 fun BoxScope.NotificationBadgeOverlay(packageName: String) {
 	val context = LocalContext.current

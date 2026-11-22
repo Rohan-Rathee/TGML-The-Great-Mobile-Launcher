@@ -1,5 +1,10 @@
 package com.example.tgml_the_great_mobile_launcher.commandcenter
 
+import androidx.compose.runtime.collectAsState
+import com.example.tgml_the_great_mobile_launcher.notification.NotificationRepository
+import com.example.tgml_the_great_mobile_launcher.notification.TgmlNotificationActions
+import com.example.tgml_the_great_mobile_launcher.notification.ui.NotificationSearchRow
+
 import android.content.Intent
 import android.net.Uri
 
@@ -71,6 +76,15 @@ fun CommandCenter(
 	}
 	val recent = remember(apps) { AppUsageStore.recent(context, apps) }
 	val frequent = remember(apps) { AppUsageStore.frequent(context, apps) }
+	val notifications by NotificationRepository.notifications.collectAsState()
+	val matchingNotifications = remember(normalized, notifications) {
+		if (normalized.isBlank()) emptyList()
+		else notifications.filter {
+			it.appName.lowercase().contains(normalized) ||
+				it.title.orEmpty().lowercase().contains(normalized) ||
+				it.text.orEmpty().lowercase().contains(normalized)
+		}.take(10)
+	}
 
 	AlertDialog(
 		onDismissRequest = onClose,
@@ -124,6 +138,15 @@ fun CommandCenter(
 								AppResultRow(app = app, onClick = { selectedApp = app })
 							}
 						}
+						if (matchingNotifications.isNotEmpty()) {
+							item { SectionTitle("Notifications") }
+							items(matchingNotifications, key = { it.key }) { notification ->
+								NotificationSearchRow(notification) {
+									TgmlNotificationActions.open(context, notification)
+									onClose()
+								}
+							}
+						}
 						if (matchingFolders.isNotEmpty()) {
 							item { SectionTitle("Home screen folders") }
 							items(matchingFolders, key = { it.id }) { folder ->
@@ -134,7 +157,7 @@ fun CommandCenter(
 								)
 							}
 						}
-						if (matchingApps.isEmpty() && matchingFolders.isEmpty()) {
+						if (matchingApps.isEmpty() && matchingFolders.isEmpty() && matchingNotifications.isEmpty()) {
 							item {
 								Text("No results found", color = Color.Gray, modifier = Modifier.padding(12.dp))
 							}

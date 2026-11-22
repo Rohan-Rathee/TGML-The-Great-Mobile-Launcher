@@ -30,6 +30,10 @@ import com.example.tgml_the_great_mobile_launcher.gestures.GestureMapping
 import com.example.tgml_the_great_mobile_launcher.gestures.GestureType
 import com.example.tgml_the_great_mobile_launcher.home.HomeController
 import com.example.tgml_the_great_mobile_launcher.home.widgets.WidgetHostController
+import com.example.tgml_the_great_mobile_launcher.notification.NotificationPreferences
+import com.example.tgml_the_great_mobile_launcher.home.HomeEnvironments
+import com.example.tgml_the_great_mobile_launcher.notification.ui.NotificationCenter
+import androidx.compose.runtime.collectAsState
 
 private const val APP_DRAWER_PAGE_SIZE = 25
 
@@ -58,6 +62,7 @@ fun LauncherNavigation(
 
 	var drawerOpen by rememberSaveable { mutableStateOf(false) }
 	var commandCenterOpen by rememberSaveable { mutableStateOf(false) }
+	var notificationCenterOpen by rememberSaveable { mutableStateOf(false) }
 	var openingGesture by rememberSaveable { mutableStateOf<GestureType?>(null) }
 	var homePage by rememberSaveable { mutableStateOf(0) }
 	var homePageCount by rememberSaveable { mutableStateOf(initialHomePageCount.coerceAtLeast(1)) }
@@ -66,8 +71,13 @@ fun LauncherNavigation(
 		maxOf(1, (apps.size + APP_DRAWER_PAGE_SIZE - 1) / APP_DRAWER_PAGE_SIZE)
 	} else 1
 	val context = LocalContext.current
-	val homeController = remember(context) {
-		HomeController(context.applicationContext)
+	val notificationVersion by NotificationPreferences.version.collectAsState()
+	val notificationGesture = remember(notificationVersion) {
+		NotificationPreferences.notificationGesture(context)
+	}
+	val homeEnvVersion by HomeEnvironments.version.collectAsState()
+	val homeController = remember(context, homeEnvVersion) {
+		HomeController(context.applicationContext, HomeEnvironments.activeId(context))
 	}
 
 	val widgetHost = remember(context) {
@@ -218,6 +228,7 @@ fun LauncherNavigation(
 	}
 
 	BackHandler(enabled = commandCenterOpen) { commandCenterOpen = false }
+	BackHandler(enabled = notificationCenterOpen) { notificationCenterOpen = false }
 	BackHandler(enabled = drawerOpen) {
 		drawerOpen = false
 		openingGesture = null
@@ -291,6 +302,9 @@ fun LauncherNavigation(
 			action == GestureAction.OPEN_APP_DRAWER && !drawerOpen -> {
 				drawerOpen = true
 				openingGesture = gesture
+			}
+			!drawerOpen && context == GestureContext.HOME && gesture == notificationGesture && (action == null || action == GestureAction.NONE) -> {
+				notificationCenterOpen = true
 			}
 			!drawerOpen && context == GestureContext.HOME && gesture == GestureType.SWIPE_DOWN && (action == null || action == GestureAction.NONE) -> {
 				commandCenterOpen = true
@@ -375,5 +389,9 @@ fun LauncherNavigation(
 			onSideHandleHomeIntegrationChange = onSideHandleHomeIntegrationChange,
 			onSideHandleFoldersChange = onSideHandleFoldersChange,
 		)
+	}
+
+	if (notificationCenterOpen) {
+		NotificationCenter(onClose = { notificationCenterOpen = false })
 	}
 }

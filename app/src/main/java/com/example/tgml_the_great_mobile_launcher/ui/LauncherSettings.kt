@@ -28,10 +28,11 @@ import androidx.compose.ui.unit.sp
 import com.example.tgml_the_great_mobile_launcher.AppInfo
 import com.example.tgml_the_great_mobile_launcher.LauncherLayout
 import com.example.tgml_the_great_mobile_launcher.SideHandleFolder
-import com.example.tgml_the_great_mobile_launcher.ui.settings.SettingsAppLock
 import com.example.tgml_the_great_mobile_launcher.ui.settings.SettingsHome
-import com.example.tgml_the_great_mobile_launcher.ui.settings.SettingsLayout
 import com.example.tgml_the_great_mobile_launcher.ui.settings.SettingsNotifications
+import com.example.tgml_the_great_mobile_launcher.ui.settings.SettingsAppLock
+import com.example.tgml_the_great_mobile_launcher.ui.settings.SettingsHomeEnvironments
+import com.example.tgml_the_great_mobile_launcher.ui.settings.SettingsLayout
 import com.example.tgml_the_great_mobile_launcher.ui.settings.SettingsPage
 import com.example.tgml_the_great_mobile_launcher.ui.settings.SettingsSideHandle
 import com.example.tgml_the_great_mobile_launcher.ui.settings.SettingsTransitions
@@ -144,6 +145,7 @@ fun LauncherSettings(
 
 					SettingsPage.NOTIFICATIONS -> SettingsNotifications()
 					SettingsPage.APP_LOCK -> SettingsAppLock()
+					SettingsPage.HOME_ENVIRONMENTS -> SettingsHomeEnvironments()
 					SettingsPage.SIDE_HANDLE -> SettingsSideHandle(
 						apps = apps,
 						enabled = sideHandleEnabled,

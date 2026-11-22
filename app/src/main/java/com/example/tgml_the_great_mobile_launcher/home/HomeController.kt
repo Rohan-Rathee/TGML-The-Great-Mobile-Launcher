@@ -236,7 +236,7 @@ class HomeController(
 		itemId: String,
 		page: Int
 	): Boolean {
-			val item = items.find { it.id == itemId } ?: return false
+		val item = items.find { it.id == itemId } ?: return false
 		val folderId = item.parentFolderId ?: return false
 
 		val position = HomePlacementEngine.findFirstAvailable(

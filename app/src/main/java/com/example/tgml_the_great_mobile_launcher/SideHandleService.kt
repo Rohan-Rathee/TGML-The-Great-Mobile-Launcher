@@ -2,6 +2,8 @@
 package com.example.tgml_the_great_mobile_launcher
 
 import android.animation.ValueAnimator
+import com.example.tgml_the_great_mobile_launcher.privacy.AppLockGateActivity
+import com.example.tgml_the_great_mobile_launcher.privacy.AppPrivacyPreferences
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -292,12 +294,19 @@ class SideHandleService : Service() {
 	}
 
 	private fun launchApp(app: AppInfo) {
+		if (AppPrivacyPreferences.isLocked(this, app.packageName)) {
+			startActivity(AppLockGateActivity.intent(this, app.packageName, app.activityName))
+			return
+		}
 		val intent = packageManager.getLaunchIntentForPackage(app.packageName) ?: return
 		intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 		startActivity(intent)
 	}
 
-	private fun loadApps(folder: SideHandleFolder): List<AppInfo> {
+	private fun loadApps(folder: SideHandleFolder): List<AppInfo> =
+		loadAppsUnfiltered(folder).filterNot { AppPrivacyPreferences.isHidden(this, it.packageName) }
+
+	private fun loadAppsUnfiltered(folder: SideHandleFolder): List<AppInfo> {
 		val key = folder.packages.joinToString("|")
 		return appCache.getOrPut(key) {
 			folder.packages.mapNotNull { packageName ->

@@ -26,5 +26,5 @@ data class TgmlNotificationAction(
 
 	val isMarkAsRead: Boolean
 		get() = Build.VERSION.SDK_INT >= Build.VERSION_CODES.P &&
-				action.semanticAction == Notification.Action.SEMANTIC_ACTION_MARK_AS_READ
+			action.semanticAction == Notification.Action.SEMANTIC_ACTION_MARK_AS_READ
 }

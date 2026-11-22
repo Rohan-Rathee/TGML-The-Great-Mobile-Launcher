@@ -15,15 +15,15 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.mutableStateOf
 import androidx.core.content.edit
 import androidx.core.net.toUri
-import androidx.lifecycle.lifecycleScope
 import com.example.tgml_the_great_mobile_launcher.commandcenter.AppUsageStore
 import com.example.tgml_the_great_mobile_launcher.data.GesturePreferences
 import com.example.tgml_the_great_mobile_launcher.privacy.AppLockGateActivity
 import com.example.tgml_the_great_mobile_launcher.privacy.AppPrivacyPreferences
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 import com.example.tgml_the_great_mobile_launcher.ui.LauncherNavigation
 import com.example.tgml_the_great_mobile_launcher.ui.PageTransitionStyle
 import com.example.tgml_the_great_mobile_launcher.ui.theme.TGMLTheGreatMobileLauncherTheme
-import kotlinx.coroutines.launch
 
 
 class MainActivity : ComponentActivity()

@@ -1,6 +1,8 @@
 
 package com.example.tgml_the_great_mobile_launcher.ui
 
+import com.example.tgml_the_great_mobile_launcher.notification.ui.NotificationBadgeOverlay
+
 import android.appwidget.AppWidgetProviderInfo
 import android.content.Intent
 import android.net.Uri
@@ -534,6 +536,8 @@ fun HomeScreen(
 											)
 										)
 									}
+
+									NotificationBadgeOverlay(app.packageName)
 
 									if (editMode) {
 										Box(

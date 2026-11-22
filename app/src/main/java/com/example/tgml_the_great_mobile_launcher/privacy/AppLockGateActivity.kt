@@ -29,7 +29,7 @@ class AppLockGateActivity : FragmentActivity() {
 
 		val authenticators = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
 			BiometricManager.Authenticators.BIOMETRIC_STRONG or
-					BiometricManager.Authenticators.DEVICE_CREDENTIAL
+				BiometricManager.Authenticators.DEVICE_CREDENTIAL
 		} else {
 			BiometricManager.Authenticators.BIOMETRIC_WEAK
 		}
