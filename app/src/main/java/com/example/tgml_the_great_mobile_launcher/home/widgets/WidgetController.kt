@@ -1,4 +1,3 @@
-
 package com.example.tgml_the_great_mobile_launcher.home.widgets
 
 import android.appwidget.AppWidgetHost
@@ -11,7 +10,7 @@ import android.os.Bundle
 
 class WidgetHostController(context: Context) {
 	companion object {
-		private const val HOST_ID = 1024
+		const val HOST_ID = 1024
 	}
 
 	private val appContext = context.applicationContext

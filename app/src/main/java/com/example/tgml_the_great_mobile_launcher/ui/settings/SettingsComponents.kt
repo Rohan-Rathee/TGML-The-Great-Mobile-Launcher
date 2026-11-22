@@ -1,4 +1,3 @@
-
 package com.example.tgml_the_great_mobile_launcher.ui.settings
 
 import androidx.compose.foundation.clickable
@@ -27,6 +26,7 @@ enum class SettingsPage(
 	SIDE_HANDLE("Side Handle", "Configure your side handle"),
 	NOTIFICATIONS("Notifications", "Badges, notification center and gesture"),
 	APP_LOCK("App Lock", "Lock, hide and protect apps"),
+	HOME_ENVIRONMENTS("Home Environments", "Separate home screens for work, study and more"),
 }
 
 @Composable

@@ -1,4 +1,3 @@
-
 package com.example.tgml_the_great_mobile_launcher.ui.settings
 
 import androidx.compose.foundation.layout.Arrangement
@@ -44,6 +43,12 @@ fun SettingsHome(
 			title = "Page Transitions",
 			description = "No way does this do exactly what it says",
 			onClick = { onNavigate(SettingsPage.TRANSITIONS) }
+		)
+
+		SettingsCategoryCard(
+			title = "Home Environments",
+			description = "Separate home screens for work, study and more",
+			onClick = { onNavigate(SettingsPage.HOME_ENVIRONMENTS) }
 		)
 
 		SettingsCategoryCard(

@@ -1,12 +1,14 @@
-
 package com.example.tgml_the_great_mobile_launcher.home
 
 import android.content.Context
 import androidx.compose.runtime.mutableStateListOf
 
-class HomeController(context: Context) {
-	private val repository = HomeRepo(context)
-	private val gridPreferences = HomeGridPreferences(context)
+class HomeController(
+	context: Context,
+	envId: String = HomeEnvironments.DEFAULT_ID
+) {
+	private val repository = HomeRepo(context, envId)
+	private val gridPreferences = HomeGridPreferences(context, envId)
 
 	var grid: HomePlacementEngine.GridSize = gridPreferences.load()
 		private set
@@ -234,7 +236,7 @@ class HomeController(context: Context) {
 		itemId: String,
 		page: Int
 	): Boolean {
-		val item = items.find { it.id == itemId } ?: return false
+			val item = items.find { it.id == itemId } ?: return false
 		val folderId = item.parentFolderId ?: return false
 
 		val position = HomePlacementEngine.findFirstAvailable(

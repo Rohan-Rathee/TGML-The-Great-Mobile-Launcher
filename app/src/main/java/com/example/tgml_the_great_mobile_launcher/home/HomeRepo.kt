@@ -5,13 +5,14 @@ import androidx.core.content.edit
 import org.json.JSONArray
 import org.json.JSONObject
 
-class HomeRepo(context: Context) {
+class HomeRepo(context: Context, envId: String = HomeEnvironments.DEFAULT_ID) {
+	private val itemsKey = HomeEnvironments.keyFor(KEY_ITEMS, envId)
 	private val preferences = context.applicationContext
 		.getSharedPreferences("launcher_home", Context.MODE_PRIVATE)
 
 
 	fun loadItems(): List<HomeItem> {
-		val json = preferences.getString(KEY_ITEMS, null) ?: return emptyList()
+		val json = preferences.getString(itemsKey, null) ?: return emptyList()
 
 		return try {
 			val array = JSONArray(json)
@@ -85,8 +86,12 @@ class HomeRepo(context: Context) {
 		}
 
 		preferences.edit {
-			putString(KEY_ITEMS, array.toString())
+			putString(itemsKey, array.toString())
 		}
+	}
+
+	fun clear() {
+		preferences.edit { remove(itemsKey) }
 	}
 
 	companion object {
