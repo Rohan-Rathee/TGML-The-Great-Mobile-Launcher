@@ -15,11 +15,15 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.mutableStateOf
 import androidx.core.content.edit
 import androidx.core.net.toUri
+import androidx.lifecycle.lifecycleScope
 import com.example.tgml_the_great_mobile_launcher.commandcenter.AppUsageStore
 import com.example.tgml_the_great_mobile_launcher.data.GesturePreferences
+import com.example.tgml_the_great_mobile_launcher.privacy.AppLockGateActivity
+import com.example.tgml_the_great_mobile_launcher.privacyobject.AppPrivacyPreferences
 import com.example.tgml_the_great_mobile_launcher.ui.LauncherNavigation
 import com.example.tgml_the_great_mobile_launcher.ui.PageTransitionStyle
 import com.example.tgml_the_great_mobile_launcher.ui.theme.TGMLTheGreatMobileLauncherTheme
+import kotlinx.coroutines.launch
 
 
 class MainActivity : ComponentActivity()
@@ -31,6 +35,7 @@ class MainActivity : ComponentActivity()
 	private val sideHandleFolders = mutableStateOf<List<SideHandleFolder>>(emptyList())
 
 	private val selectedBackgroundUri = mutableStateOf<Uri?>(null)
+	private val appList = mutableStateOf<List<AppInfo>>(emptyList())
 
 	private val backgroundPicker = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
 		if (uri != null) {
@@ -53,7 +58,10 @@ class MainActivity : ComponentActivity()
 
 		selectedBackgroundUri.value = getSharedPreferences("launcher", MODE_PRIVATE)
 			.getString("background_uri", null)?.let { Uri.parse(it) }
-		val apps = getInstalledApps()
+		appList.value = getInstalledApps()
+		lifecycleScope.launch {
+			AppPrivacyPreferences.version.collect { appList.value = getInstalledApps() }
+		}
 		val savedBackground =
 			getSharedPreferences("launcher", MODE_PRIVATE)
 				.getString("background_uri", null)
@@ -80,7 +88,7 @@ class MainActivity : ComponentActivity()
 		sideHandleFolders.value = SideHandlePreferences.loadFolders(this)
 
 		setContent { TGMLTheGreatMobileLauncherTheme { LauncherNavigation (
-			apps = apps,
+			apps = appList.value,
 			backgroundUri = selectedBackgroundUri.value,
 			layout = selectedLayout.value,
 			gestureMappings = gestureMappings,
@@ -192,10 +200,15 @@ class MainActivity : ComponentActivity()
 					icon = it.loadIcon(packageManager)
 				)
 			}
+			.filterNot { AppPrivacyPreferences.isHidden(this, it.packageName) }
 			.sortedBy { it.name.lowercase() }
 	}
 
 	private fun launchApp(app: AppInfo) {
+		if (AppPrivacyPreferences.isLocked(this, app.packageName)) {
+			startActivity(AppLockGateActivity.intent(this, app.packageName, app.activityName))
+			return
+		}
 		val intent = Intent().apply { setClassName(app.packageName, app.activityName) }
 		startActivity(intent)
 	}

@@ -26,13 +26,13 @@ enum class SettingsPage(
 	TRANSITIONS("Page Transitions", "Customise page animations"),
 	SIDE_HANDLE("Side Handle", "Configure your side handle"),
 	NOTIFICATIONS("Notifications", "Badges, notification center and gesture"),
-
+	APP_LOCK("App Lock", "Lock, hide and protect apps"),
 }
 
 @Composable
 fun SettingsCategoryCard(
 	title: String,
-		description: String,
+	description: String,
 	onClick: () -> Unit
 ) {
 	Row(

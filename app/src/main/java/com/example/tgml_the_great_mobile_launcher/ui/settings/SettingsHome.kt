@@ -47,10 +47,17 @@ fun SettingsHome(
 		)
 
 		SettingsCategoryCard(
-			title = "Side Handle",
-			description = "Ok, these descriptions go away the next to next update since everything is what it's title says. You have been integral to the development of this launcher if you can read this",
-			onClick = { onNavigate(SettingsPage.SIDE_HANDLE) }
+			title = "App Lock",
+			description = "Lock, hide and protect apps",
+			onClick = { onNavigate(SettingsPage.APP_LOCK) }
 		)
+
+		SettingsCategoryCard(
+			title = "Notifications",
+			description = "Badges, notification center and gesture",
+			onClick = { onNavigate(SettingsPage.NOTIFICATIONS) }
+		)
+
 		SettingsCategoryCard(
 			title = "Side Handle",
 			description = "Ok, these descriptions go away the next to next update since everything is what it's title says. You have been integral to the development of this launcher if you can read this",
