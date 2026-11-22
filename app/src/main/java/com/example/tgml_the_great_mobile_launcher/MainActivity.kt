@@ -19,7 +19,7 @@ import androidx.lifecycle.lifecycleScope
 import com.example.tgml_the_great_mobile_launcher.commandcenter.AppUsageStore
 import com.example.tgml_the_great_mobile_launcher.data.GesturePreferences
 import com.example.tgml_the_great_mobile_launcher.privacy.AppLockGateActivity
-import com.example.tgml_the_great_mobile_launcher.privacyobject.AppPrivacyPreferences
+import com.example.tgml_the_great_mobile_launcher.privacy.AppPrivacyPreferences
 import com.example.tgml_the_great_mobile_launcher.ui.LauncherNavigation
 import com.example.tgml_the_great_mobile_launcher.ui.PageTransitionStyle
 import com.example.tgml_the_great_mobile_launcher.ui.theme.TGMLTheGreatMobileLauncherTheme

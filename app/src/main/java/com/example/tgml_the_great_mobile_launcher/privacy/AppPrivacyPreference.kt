@@ -1,4 +1,4 @@
-package com.example.tgml_the_great_mobile_launcher.privacyobject
+package com.example.tgml_the_great_mobile_launcher.privacy
 
 import android.content.Context
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -11,6 +11,9 @@ object AppPrivacyPreferences {
 	private const val KEY_HIDE = "hidden:"
 
 	private val changes = MutableStateFlow(0)
+	private fun prefs(context: Context) =
+		context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+
 	val version: StateFlow<Int> = changes.asStateFlow()
 	fun isLocked(context: Context, packageName: String): Boolean =
 		prefs(context).getBoolean(KEY_LOCK + packageName, false)
