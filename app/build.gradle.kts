@@ -54,6 +54,7 @@ dependencies {
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.core.ktx)
     implementation("androidx.biometric:biometric:1.1.0")
+	implementation("androidx.fragment:fragment:1.8.5")
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.ui.graphics)
     testImplementation(libs.junit)
