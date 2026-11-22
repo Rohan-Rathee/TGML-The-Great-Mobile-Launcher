@@ -8,6 +8,10 @@ A custom Mobile Launcher for android. Will soon be the top. i hope. i wish. i ex
 
 
 
+https://github.com/user-attachments/assets/69075ad1-b447-4254-8fcb-d73447db3602
+
+
+
 WEEK 5 FEATURES!!:
 1. A dedicated settings screen!!!
 2. App hold menu and command center search!!!!!!!!!
